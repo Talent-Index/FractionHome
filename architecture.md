@@ -1,4 +1,4 @@
-# FractionHome## 🏗️ **FractionHome MVP Architecture Overview**
+## 🏗️ **FractionHome MVP Architecture Overview**
 
 ### 🎯 **Goal**
 
