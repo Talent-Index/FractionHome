@@ -34,5 +34,4 @@ await db.read();
 return db.data.properties;
 }
 
-
 module.exports = { init, createProperty, getPropertyById, listProperties };

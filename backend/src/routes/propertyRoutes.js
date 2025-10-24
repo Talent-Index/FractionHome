@@ -1,3 +1,4 @@
+// src/routes/propertyRoutes.js
 const express = require('express');
 const multer = require('multer');
 const upload = multer(); // memory storage
@@ -6,11 +7,14 @@ const purchaseController = require('../controllers/purchaseController');
 
 const router = express.Router();
 
-// ... existing routes
+// Controllers
+const propertyController = require('../controllers/propertyController');
+const tokenController = require('../controllers/tokenController');
+const holderController = require('../controllers/holderController');
+
 
 /**
- * POST /api/properties/:id/buy
- * Purchase tokens for a property
+ * Property Routes
  */
 router.post('/:id/buy', (req, res) =>
   purchaseController.buyTokens(req, res)
