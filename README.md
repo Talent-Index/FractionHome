@@ -1,4 +1,4 @@
-# FractionHome## 🏗️ **FractionHome MVP Architecture Overview**
+# FractionHome
 
 ### 🎯 **Goal**
 
@@ -144,3 +144,39 @@ HEDERA_NETWORK=testnet
 4. Dashboard updates showing token distribution.
 
 This creates a **clear, verifiable tokenized property demo** — perfect for showing investors, hackathon judges, or a product prototype.
+
+
+```
+FractionHome/
+├── backend/
+│   ├── db.json
+│   ├── hedera.js
+│   ├── package.json
+│   ├── server.js
+│   ├── README.md
+│   ├── .env.example
+│   ├── uploads/                 # created dynamically when uploading files
+│   └── public/
+│       └── media/               # uploaded images stored here
+│
+├── frontend/
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── README.md
+│   ├── node_modules/
+│   └── src/
+│       ├── App.jsx              # simple React UI
+│       ├── main.jsx
+│       └── assets/
+│
+├── docs/
+│   └── demo.md                  # short usage notes
+│
+├── scripts/
+│   ├── start-backend.sh         # helper to run backend in dev mode
+│   └── demo-api.sh              # test script to upload & list properties
+│
+├── .gitignore
+└── README.md                    # project overview
+```
