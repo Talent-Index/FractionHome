@@ -146,6 +146,31 @@ HEDERA_NETWORK=testnet
 This creates a **clear, verifiable tokenized property demo** — perfect for showing investors, hackathon judges, or a product prototype.
 
 
+
+# Hedera IPFS Property Backend (MVP)
+
+
+This project demonstrates how to persist property media and canonical metadata to immutable off-chain storage (IPFS) and keep compact, verifiable references on-chain (or in this case, locally recorded CIDs). It satisfies the acceptance checklist for an MVP.
+
+
+## What it does
+* Uploads media files to IPFS (supports ipfs-http-client or Pinata)
+* Builds canonical metadata JSON containing media CIDs and SHA-256 hash
+* Uploads canonical metadata JSON to IPFS
+* Stores a compact local record: `{ id, metadataCid, canonicalHash }`
+* Exposes endpoints to upload, list, and verify metadata
+
+
+## How to run
+1. Copy `.env.example` to `.env` and set provider values.
+2. `npm install` (dependencies: express, ipfs-http-client, multer, lowdb, axios, pino, dotenv, uuid)
+3. `node src/server.js`
+
+
+## Endpoints
+* `POST /api/properties` - multipart/form-data `files[]` + additional form fields -> returns record
+* `GET /api/properties` - list
+* `GET /api/propert
 ```
 FractionHome/
 ├── backend/
