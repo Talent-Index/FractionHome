@@ -1,4 +1,6 @@
 const express = require('express');
+
+const holderRoutes = require('./routes/holderRoutes');
 const bodyParser = require('body-parser');
 const requestLogger = require('./middlewares/requestLogger');
 const errorHandler = require('./middlewares/errorHandler');
@@ -19,6 +21,7 @@ const app = express();
 app.use(bodyParser.json());
 app.use(requestLogger);
 
+
 // Initialize services
 const hederaClient = new HederaClient();
 const propertyModel = new PropertyModel();
@@ -28,19 +31,20 @@ const hcsService = new HcsService(hederaClient);
 const mirrorNodeService = new MirrorNodeService();
 
 const purchaseService = new PurchaseService(
-  hederaClient,
-  saleModel,
-  hcsService,
-  tokenModel
+    hederaClient,
+    saleModel,
+    hcsService,
+    tokenModel
 );
 
 const purchaseController = new PurchaseController(
-  purchaseService,
-  propertyModel,
-  mirrorNodeService
+    purchaseService,
+    propertyModel,
+    mirrorNodeService
 );
 
 // Routes
+app.use('/api/holders', holderRoutes);
 app.use('/api/properties', propertyRoutes(purchaseController));
 
 app.get('/', (req, res) => res.json({ ok: true, service: 'hedera-ipfs-property-backend' }));
