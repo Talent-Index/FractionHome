@@ -6,6 +6,7 @@ const {
 } = require('@hashgraph/sdk');
 const { SALE_STATUS } = require('../utils/constants');
 const logger = require('../config/logger');
+const mirrorNodeService = require('./mirrorNodeService');
 
 class PurchaseService {
   constructor(hederaClient, saleModel, hcsService, tokenModel) {
@@ -112,6 +113,12 @@ class PurchaseService {
         transferResult.transactionId,
         hcsMessageId
       );
+
+      // Step 7: Invalidate cache after successful purchase
+      mirrorNodeService.invalidateCacheForToken(tokenId);
+      if (token.hcsTopicId) {
+        mirrorNodeService.invalidateCacheForTopic(token.hcsTopicId);
+      }
 
       return {
         saleId: sale.id,
