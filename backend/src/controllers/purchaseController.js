@@ -1,6 +1,6 @@
-import { MIN_PURCHASE_QUANTITY, MAX_PURCHASE_QUANTITY } from '../utils/constants';
-import { successResponse, errorResponse } from '../utils/responseUtil';
-import logger from '../config/logger';
+import { MIN_PURCHASE_QUANTITY, MAX_PURCHASE_QUANTITY } from '../utils/constants.js';
+import { successResponse, errorResponse } from '../utils/responseUtil.js';
+import logger from '../config/logger.js';
 
 class PurchaseController {
   constructor(purchaseService, propertyModel, mirrorNodeService) {

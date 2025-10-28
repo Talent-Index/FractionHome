@@ -1,5 +1,5 @@
-const mirrorNodeService = require('../../services/mirrorNodeService');
-const cacheService = require('../../services/cacheService');
+const mirrorNodeService = require('../../services/mirrorNodeService.js');
+const cacheService = require('../../services/cacheService.js');
 
 // These tests require actual Hedera testnet access
 // Set SKIP_INTEGRATION_TESTS=true to skip

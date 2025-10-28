@@ -11,7 +11,7 @@
  *  - MIRROR_NODE_URL        (optional, e.g. https://testnet.mirrornode.hedera.com)
  *
  * Usage:
- *  const HederaClient = require('./config/hederaClient');
+ *  const HederaClient = require('./config/hederaClient.js');
  *  const hederaClient = new HederaClient();
  *  const sdkClient = hederaClient.getClient();
  */

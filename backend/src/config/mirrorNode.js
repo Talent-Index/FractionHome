@@ -1,4 +1,4 @@
-import logger from './logger';
+import logger from './logger.js';
 
 const MIRROR_NODE_CONFIG = {
   // Hedera Testnet Mirror Node

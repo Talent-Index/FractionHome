@@ -1,5 +1,5 @@
-const mirrorNodeService = require('../../services/mirrorNodeService');
-const cacheService = require('../../services/cacheService');
+const mirrorNodeService = require('../../services/mirrorNodeService.js');
+const cacheService = require('../../services/cacheService.js');
 
 // Mock fetch
 global.fetch = jest.fn();

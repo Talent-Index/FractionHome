@@ -2,8 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import FormData from 'form-data';
 import axios from 'axios';
-import { ipfs, pinata } from '../config/ipfsClient';
-import logger from '../config/logger';
+import { ipfs, pinata } from '../config/ipfsClient.js';
+import logger from '../config/logger.js';
 
 
 async function uploadBufferToIpfs(buffer, filename) {

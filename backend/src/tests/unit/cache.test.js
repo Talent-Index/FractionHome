@@ -1,4 +1,4 @@
-const cacheService = require('../../services/cacheService');
+const cacheService = require('../../services/cacheService.js');
 
 describe('CacheService', () => {
   beforeEach(() => {
