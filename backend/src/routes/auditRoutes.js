@@ -1,12 +1,12 @@
 import express from 'express';
 const router = express.Router();
 
-module.exports = (auditController) => {
+export default (auditController) => {
   /**
    * GET /api/audit/topic/:topicId
    * Get all messages from an HCS topic
    */
-  router.get('/topic/:topicId', (req, res) => 
+  router.get('/topic/:topicId', (req, res) =>
     auditController.getTopicMessages(req, res)
   );
 
@@ -14,7 +14,7 @@ module.exports = (auditController) => {
    * GET /api/audit/property/:propertyId
    * Get complete audit trail for a property
    */
-  router.get('/property/:propertyId', (req, res) => 
+  router.get('/property/:propertyId', (req, res) =>
     auditController.getPropertyAuditTrail(req, res)
   );
 
@@ -22,7 +22,7 @@ module.exports = (auditController) => {
    * GET /api/audit/token/:tokenId
    * Get complete audit trail for a token
    */
-  router.get('/token/:tokenId', (req, res) => 
+  router.get('/token/:tokenId', (req, res) =>
     auditController.getTokenAuditTrail(req, res)
   );
 
@@ -30,7 +30,7 @@ module.exports = (auditController) => {
    * POST /api/audit/invalidate
    * Manually invalidate cache
    */
-  router.post('/invalidate', (req, res) => 
+  router.post('/invalidate', (req, res) =>
     auditController.invalidateCache(req, res)
   );
 

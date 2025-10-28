@@ -17,6 +17,9 @@
  */
 
 import { Client, PrivateKey, AccountId } from '@hashgraph/sdk';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 
 class HederaClient {

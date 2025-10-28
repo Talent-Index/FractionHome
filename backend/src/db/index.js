@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import Database from 'better-sqlite3';
 
 // File: backend/src/db/index.js
@@ -7,7 +8,8 @@ import Database from 'better-sqlite3';
 // Exports a db object with .get(collection).value()/find()/push()/assign() and .set().write()
 // Uses better-sqlite3 for synchronous I/O and keeps an in-memory cache for fast reads.
 
-
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const DB_FILE = process.env.DB_FILE || path.resolve(__dirname, '..', '..', 'data', 'db.sqlite');
 
 // ensure directory exists

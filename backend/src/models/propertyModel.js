@@ -1,40 +1,41 @@
-import { Low } from 'lowdb';
+import { Low, JSONFile } from 'lowdb';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import db from '../db/index.js';
 
 
-const file = path.join(__dirname, '../../db/properties.json');
-const adapter = new FileSync(file);
-const db = new Low(adapter);
+class PropertyModel {
+    constructor(dbInstance) {
+        this.db = dbInstance || db;
+    }
 
+    async init() {
+        await this.db.read();
+        this.db.data = this.db.data || {};
+        this.db.data.properties = this.db.data.properties || [];
+        await this.db.write();
+    }
 
-async function init() {
-await db.read();
-db.data = db.data || { properties: [] };
-await db.write();
+    async createProperty(record) {
+        await this.db.read();
+        this.db.data = this.db.data || {};
+        this.db.data.properties = this.db.data.properties || [];
+        this.db.data.properties.push(record);
+        await this.db.write();
+        return record;
+    }
+
+    async getPropertyById(id) {
+        await this.db.read();
+        const properties = (this.db.data && this.db.data.properties) || [];
+        return properties.find(p => p.id === id);
+    }
+
+    async listProperties() {
+        await this.db.read();
+        return (this.db.data && this.db.data.properties) || [];
+    }
 }
 
-
-async function createProperty(record) {
-await db.read();
-db.data.properties.push(record);
-await db.write();
-return record;
-}
-
-
-async function getPropertyById(id) {
-await db.read();
-return db.data.properties.find(p => p.id === id);
-}
-
-
-async function listProperties() {
-await db.read();
-return db.data.properties;
-}
-
-export { init, createProperty, getPropertyById, listProperties };
+export default PropertyModel;

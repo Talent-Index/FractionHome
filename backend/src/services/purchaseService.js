@@ -1,7 +1,10 @@
 import { TransferTransaction, TokenId, AccountId, PrivateKey } from '@hashgraph/sdk';
-import { SALE_STATUS } from '../utils/constants.js';
 import logger from '../config/logger.js';
 import mirrorNodeService from './mirrorNodeService.js';
+import constants from '../utils/constants.js';
+
+
+const { SALE_STATUS } = constants;
 
 class PurchaseService {
   constructor(hederaClient, saleModel, hcsService, tokenModel) {

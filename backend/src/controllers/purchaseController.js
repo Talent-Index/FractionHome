@@ -1,6 +1,8 @@
-import { MIN_PURCHASE_QUANTITY, MAX_PURCHASE_QUANTITY } from '../utils/constants.js';
 import { successResponse, errorResponse } from '../utils/responseUtil.js';
 import logger from '../config/logger.js';
+import constants from '../utils/constants.js';
+
+const { MIN_PURCHASE_QUANTITY, MAX_PURCHASE_QUANTITY } = constants;
 
 class PurchaseController {
   constructor(purchaseService, propertyModel, mirrorNodeService) {

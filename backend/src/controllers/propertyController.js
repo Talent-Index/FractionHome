@@ -1,6 +1,8 @@
-import { createProperty, getPropertyById, listProperties } from '../models/propertyModel.js';
+import PropertyModel from '../models/propertyModel.js';
 import { sha256Hex } from '../utils/hashUtil.js'; // ensure these utilities exist and export these functions
 import { fetchIpfsJson } from '../config/ipfsClient.js';
+
+const propertyModel = new PropertyModel();
 
 async function uploadProperty(req, res, next) {
     try {
@@ -17,7 +19,7 @@ async function uploadProperty(req, res, next) {
             preview: Array.isArray(media) ? media[0] || null : media || null,
         };
 
-        await createProperty(record);
+        await propertyModel.createProperty(record);
 
         return res.json({ ok: true, record });
     } catch (err) {
@@ -28,7 +30,7 @@ async function uploadProperty(req, res, next) {
 async function getProperty(req, res, next) {
     try {
         const id = req.params.id;
-        const p = await getPropertyById(id);
+        const p = await propertyModel.getPropertyById(id);
         if (!p) return res.status(404).json({ error: 'Not found' });
         return res.json({ ok: true, property: p });
     } catch (err) {
@@ -39,7 +41,7 @@ async function getProperty(req, res, next) {
 async function verifyProperty(req, res, next) {
     try {
         const id = req.params.id;
-        const p = await getPropertyById(id);
+        const p = await propertyModel.getPropertyById(id);
         if (!p) return res.status(404).json({ error: 'Not found' });
 
         const meta = await fetchIpfsJson(p.metadataCid);
@@ -60,7 +62,7 @@ async function verifyProperty(req, res, next) {
 
 async function listAll(_req, res, next) {
     try {
-        const items = await listProperties();
+        const items = await propertyModel.listProperties();
         res.json({ ok: true, items });
     } catch (err) {
         next(err);

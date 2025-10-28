@@ -2,7 +2,9 @@ import fetch from 'node-fetch';
 import config from '../config/mirrorNode.js';
 import cacheService from './cacheService.js';
 import logger from '../config/logger.js';
-import { CACHE_TTL, CACHE_KEYS, MIRROR_NODE } from '../utils/constants.js';
+import constants from '../utils/constants.js';
+
+const { CACHE_TTL, CACHE_KEYS, MIRROR_NODE } = constants;
 
 class MirrorNodeService {
     constructor() {
@@ -301,4 +303,4 @@ class MirrorNodeService {
     }
 }
 
-export default new MirrorNodeService();
+export default MirrorNodeService;

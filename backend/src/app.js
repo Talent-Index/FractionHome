@@ -45,7 +45,7 @@ const purchaseController = new PurchaseController(
 
 // Routes
 app.use('/api/holders', holderRoutes);
-app.use('/api/properties', propertyRoutes(purchaseController));
+// app.use('/api/properties', propertyRoutes(purchaseController));
 
 app.get('/', (req, res) => res.json({ ok: true, service: 'hedera-ipfs-property-backend' }));
 
