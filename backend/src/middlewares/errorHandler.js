@@ -1,11 +1,6 @@
-const logger = require('../config/logger');
-module.exports = (err, req, res, next) => {
-logger.error(err.stack || err.message || err);
-res.status(500).json({ error: err.message || 'internal error' });
-};
+import logger from '../config/logger.js';
 
-const logger = require('../config/logger');
-module.exports = (err, req, res, next) => {
-logger.error(err.stack || err.message || err);
-res.status(500).json({ error: err.message || 'internal error' });
+export default (err, req, res, next) => {
+    logger.error(err.stack || err.message || err);
+    res.status(500).json({ error: err.message || 'internal error' });
 };

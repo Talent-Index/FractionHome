@@ -38,8 +38,4 @@ const paginationMeta = (total, page, limit) => {
   };
 };
 
-module.exports = {
-  successResponse,
-  errorResponse,
-  paginationMeta
-};
+export { successResponse, errorResponse, paginationMeta };

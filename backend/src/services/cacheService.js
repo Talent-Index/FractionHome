@@ -1,4 +1,4 @@
-const logger = require('../config/logger');
+import logger from '../config/logger.js';
 
 /**
  * Simple in-memory cache with TTL support
@@ -134,4 +134,4 @@ class CacheService {
 // Singleton instance
 const cacheService = new CacheService();
 
-module.exports = cacheService;
+export default cacheService;

@@ -1,12 +1,7 @@
-const { 
-  TransferTransaction, 
-  TokenId, 
-  AccountId,
-  PrivateKey
-} = require('@hashgraph/sdk');
-const { SALE_STATUS } = require('../utils/constants');
-const logger = require('../config/logger');
-const mirrorNodeService = require('./mirrorNodeService');
+import { TransferTransaction, TokenId, AccountId, PrivateKey } from '@hashgraph/sdk';
+import { SALE_STATUS } from '../utils/constants';
+import logger from '../config/logger';
+import mirrorNodeService from './mirrorNodeService';
 
 class PurchaseService {
   constructor(hederaClient, saleModel, hcsService, tokenModel) {
@@ -138,4 +133,4 @@ class PurchaseService {
   }
 }
 
-module.exports = PurchaseService;
+export default PurchaseService;

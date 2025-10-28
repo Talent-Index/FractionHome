@@ -1,5 +1,6 @@
-const { createProperty, getPropertyById, listProperties } = require('../models/propertyModel');
-const { fetchIpfsJson, sha256Hex } = require('../utils'); // ensure these utilities exist and export these functions
+import { createProperty, getPropertyById, listProperties } from '../models/propertyModel.js';
+import { sha256Hex } from '../utils/hashUtil.js'; // ensure these utilities exist and export these functions
+import { fetchIpfsJson } from '../config/ipfsClient.js';
 
 async function uploadProperty(req, res, next) {
     try {
@@ -66,4 +67,4 @@ async function listAll(_req, res, next) {
     }
 }
 
-module.exports = { uploadProperty, getProperty, verifyProperty, listAll };
+export { uploadProperty, getProperty, verifyProperty, listAll };

@@ -1,6 +1,9 @@
-const Low = require('lowdb').Low;
-const FileSync = require('lowdb/node').JSONFile;
-const path = require('path');
+import { Low } from 'lowdb';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 
 const file = path.join(__dirname, '../../db/properties.json');
@@ -34,4 +37,4 @@ await db.read();
 return db.data.properties;
 }
 
-module.exports = { init, createProperty, getPropertyById, listProperties };
+export { init, createProperty, getPropertyById, listProperties };

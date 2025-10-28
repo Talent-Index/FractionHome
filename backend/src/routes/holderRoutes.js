@@ -1,6 +1,6 @@
-const express = require('express');
+import express from 'express';
 const router = express.Router();
-const holderController = require('../controllers/holderController');
+import holderController from '../controllers/holderController.js';
 
 /**
  * GET /api/holders/:tokenId
@@ -34,4 +34,4 @@ router.get('/account/:accountId', (req, res) =>
   holderController.getAccountHoldings(req, res)
 );
 
-module.exports = router;
+export default router;

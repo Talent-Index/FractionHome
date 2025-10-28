@@ -1,5 +1,4 @@
-require('dotenv').config();
-
+import dotenv from 'dotenv';
 
 // minimal validation
 if (!process.env.IPFS_API_URL && !process.env.PINATA_API_KEY) {
@@ -22,7 +21,8 @@ const dummyBuyers = [
   }
 ].filter(b => b && b.accountId && b.privateKey);
 
-module.exports = {
+
+export default {
   // Export commonly used env values explicitly to avoid undefined property access elsewhere
   ipfsApiUrl: process.env.IPFS_API_URL || null,
   pinataApiKey: process.env.PINATA_API_KEY || null,

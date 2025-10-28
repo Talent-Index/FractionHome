@@ -1,20 +1,20 @@
-const express = require('express');
+import express from 'express';
 
-const holderRoutes = require('./routes/holderRoutes');
-const bodyParser = require('body-parser');
-const requestLogger = require('./middlewares/requestLogger');
-const errorHandler = require('./middlewares/errorHandler');
-const propertyRoutes = require('./routes/propertyRoutes');
+import holderRoutes from './routes/holderRoutes.js';
+import bodyParser from 'body-parser';
+import requestLogger from './middlewares/requestLogger.js';
+import errorHandler from './middlewares/errorHandler.js';
+import propertyRoutes from './routes/propertyRoutes.js';
 
 // Purchase-related dependencies
-const HederaClient = require('./config/hederaClient');
-const PropertyModel = require('./models/propertyModel');
-const SaleModel = require('./models/saleModel');
-const TokenModel = require('./models/tokenModel');
-const HcsService = require('./services/hcsService');
-const MirrorNodeService = require('./services/mirrorNodeService');
-const PurchaseService = require('./services/purchaseService');
-const PurchaseController = require('./controllers/purchaseController');
+import HederaClient from './config/hederaClient.js';
+import PropertyModel from './models/propertyModel.js';
+import SaleModel from './models/saleModel.js';
+import TokenModel from './models/tokenModel.js';
+import HcsService from './services/hcsService.js';
+import MirrorNodeService from './services/mirrorNodeService.js';
+import PurchaseService from './services/purchaseService.js';
+import PurchaseController from './controllers/purchaseController.js';
 
 const app = express();
 
@@ -51,4 +51,4 @@ app.get('/', (req, res) => res.json({ ok: true, service: 'hedera-ipfs-property-b
 
 app.use(errorHandler);
 
-module.exports = app;
+export default app;

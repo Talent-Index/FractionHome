@@ -1,6 +1,6 @@
-const mirrorNodeService = require('../services/mirrorNodeService');
-const { successResponse, errorResponse } = require('../utils/responseUtil');
-const logger = require('../config/logger');
+import mirrorNodeService from '../services/mirrorNodeService.js';
+import { successResponse, errorResponse } from '../utils/responseUtil.js';
+import logger from '../config/logger.js';
 
 class HolderController {
   /**
@@ -115,4 +115,4 @@ class HolderController {
   }
 }
 
-module.exports = new HolderController();
+export default new HolderController();

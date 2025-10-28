@@ -1,9 +1,9 @@
-const fs = require('fs');
-const path = require('path');
-const FormData = require('form-data');
-const axios = require('axios');
-const { ipfs, pinata } = require('../config/ipfsClient');
-const logger = require('../config/logger');
+import fs from 'fs';
+import path from 'path';
+import FormData from 'form-data';
+import axios from 'axios';
+import { ipfs, pinata } from '../config/ipfsClient';
+import logger from '../config/logger';
 
 
 async function uploadBufferToIpfs(buffer, filename) {
@@ -61,4 +61,4 @@ return resp.data;
 }
 
 
-module.exports = { uploadBufferToIpfs, uploadJsonToIpfs, fetchIpfsJson };
+export { uploadBufferToIpfs, uploadJsonToIpfs, fetchIpfsJson };

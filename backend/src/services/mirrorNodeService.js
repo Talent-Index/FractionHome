@@ -1,15 +1,16 @@
-const fetch = require('node-fetch');
-const mirrorNodeConfig = require('../config/mirrorNode');
-const cacheService = require('./cacheService');
-const logger = require('../config/logger');
-const { CACHE_TTL, CACHE_KEYS, MIRROR_NODE } = require('../utils/constants');
+import fetch from 'node-fetch';
+import config from '../config/mirrorNode.js';
+import cacheService from './cacheService.js';
+import logger from '../config/logger.js';
+import { CACHE_TTL, CACHE_KEYS, MIRROR_NODE } from '../utils/constants';
 
 class MirrorNodeService {
     constructor() {
-        this.baseUrl = mirrorNodeConfig.baseUrl;
-        this.timeout = mirrorNodeConfig.timeout;
-        this.retryAttempts = mirrorNodeConfig.retryAttempts;
-        this.retryDelay = mirrorNodeConfig.retryDelay;
+        this.baseUrl = config.baseUrl;
+        this.timeout = config.timeout;
+        this.retryAttempts = config.retryAttempts;
+        this.retryDelay = config.retryDelay;
+        this.network = config.network;
     }
 
     /**
@@ -300,4 +301,4 @@ class MirrorNodeService {
     }
 }
 
-module.exports = new MirrorNodeService();
+export default new MirrorNodeService();

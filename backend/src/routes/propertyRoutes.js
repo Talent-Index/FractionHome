@@ -1,17 +1,11 @@
 // src/routes/propertyRoutes.js
-const express = require('express');
-const multer = require('multer');
+import express from 'express';
+import multer from 'multer';
 const upload = multer(); // memory storage
-const propertyCtrl = require('../controllers/propertyController');
-const purchaseController = require('../controllers/purchaseController');
+import * as propertyCtrl from '../controllers/propertyController.js';
+import purchaseController from '../controllers/purchaseController.js'; // or see note below
 
 const router = express.Router();
-
-// Controllers
-const propertyController = require('../controllers/propertyController');
-const tokenController = require('../controllers/tokenController');
-const holderController = require('../controllers/holderController');
-
 
 /**
  * Property Routes
@@ -25,4 +19,4 @@ router.get('/', propertyCtrl.listAll);
 router.get('/:id', propertyCtrl.getProperty);
 router.get('/:id/verify', propertyCtrl.verifyProperty);
 
-module.exports = router;
+export default router;

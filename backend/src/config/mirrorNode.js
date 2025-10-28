@@ -1,4 +1,4 @@
-const logger = require('./logger');
+import logger from './logger';
 
 const MIRROR_NODE_CONFIG = {
   // Hedera Testnet Mirror Node
@@ -27,7 +27,4 @@ const config = MIRROR_NODE_CONFIG[network] || MIRROR_NODE_CONFIG.testnet;
 
 logger.info(`Mirror Node configured for ${network}: ${config.baseUrl}`);
 
-module.exports = {
-  ...config,
-  network
-};
+export default config;

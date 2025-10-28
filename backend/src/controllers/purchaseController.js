@@ -1,6 +1,6 @@
-const { MIN_PURCHASE_QUANTITY, MAX_PURCHASE_QUANTITY } = require('../utils/constants');
-const { successResponse, errorResponse } = require('../utils/responseUtil');
-const logger = require('../config/logger');
+import { MIN_PURCHASE_QUANTITY, MAX_PURCHASE_QUANTITY } from '../utils/constants';
+import { successResponse, errorResponse } from '../utils/responseUtil';
+import logger from '../config/logger';
 
 class PurchaseController {
   constructor(purchaseService, propertyModel, mirrorNodeService) {
@@ -82,4 +82,4 @@ class PurchaseController {
   }
 }
 
-module.exports = PurchaseController;
+export default PurchaseController;
