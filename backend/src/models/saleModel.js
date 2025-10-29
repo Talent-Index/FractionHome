@@ -1,3 +1,4 @@
+// File: backend/src/models/SaleModel.js
 import { v4 as uuidv4 } from 'uuid';
 
 class SaleModel {
@@ -6,7 +7,7 @@ class SaleModel {
     this.collection = 'sales';
   }
 
-  async create(saleData) {
+  create(saleData) {
     const sale = {
       id: uuidv4(),
       propertyId: saleData.propertyId,
@@ -24,12 +25,13 @@ class SaleModel {
       updatedAt: new Date().toISOString()
     };
 
-    await this.db.get(this.collection).push(sale).write();
+    this.db.get(this.collection).push(sale).write();
     return sale;
   }
 
-  async updateStatus(saleId, status, hederaTxId = null, hcsMessageId = null) {
-    const sale = await this.db.get(this.collection)
+  updateStatus(saleId, status, hederaTxId = null, hcsMessageId = null) {
+    const updated = this.db
+      .get(this.collection)
       .find({ id: saleId })
       .assign({
         status,
@@ -38,20 +40,22 @@ class SaleModel {
         updatedAt: new Date().toISOString()
       })
       .write();
-    
-    return sale;
+
+    return updated; // returns cloned updated object or null if not found
   }
 
-  async findById(saleId) {
+  findById(saleId) {
     return this.db.get(this.collection).find({ id: saleId }).value();
   }
 
-  async findByProperty(propertyId) {
-    return this.db.get(this.collection).filter({ propertyId }).value();
+  findByProperty(propertyId) {
+    const all = this.db.get(this.collection).value();
+    return all.filter(sale => sale.propertyId === propertyId);
   }
 
-  async findByBuyer(buyerAccountId) {
-    return this.db.get(this.collection).filter({ buyerAccountId }).value();
+  findByBuyer(buyerAccountId) {
+    const all = this.db.get(this.collection).value();
+    return all.filter(sale => sale.buyerAccountId === buyerAccountId);
   }
 }
 

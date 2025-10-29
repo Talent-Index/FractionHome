@@ -1,154 +1,133 @@
 import tokenService from '../services/tokenService.js';
-import tokenModel from '../models/tokenModel.js';
 import validateUtil from '../utils/validateUtil.js';
-import responseUtil from '../utils/responseUtil.js';
+import * as responseUtil from '../utils/responseUtil.js';
 import errorUtil from '../utils/errorUtil.js';
 import logger from '../config/logger.js';
 
 /**
  * src/controllers/tokenController.js
  *
- * Logical flow and interface for tokenController used by the Hedera dApp.
- *
- * Example usage (routes/tokenRoutes.js):
- * import express from 'express';
- * const router = express.Router();
- * import tokenController from '../controllers/tokenController.js';
- *
- * router.post('/tokenize', tokenController.createToken);           // create HTS token
- * router.get('/token/:id', tokenController.getToken);              // get token record
- * router.get('/tokens', tokenController.listTokens);               // list saved tokens
- * router.post('/token/:id/mint', tokenController.mintToken);       // mint more tokens
- * router.post('/token/:id/burn', tokenController.burnToken);       // burn tokens
- * router.post('/token/:id/transfer', tokenController.transferToken); // transfer tokens
- *
- * The controller delegates Hedera interactions to services/tokenService.js
- * and persists a lightweight token record via models/tokenModel.js.
+ * Controller now relies on tokenService for token operations (no local tokenModel usage).
  */
-
 
 async function createToken(req, res) {
     try {
-        // expected body: { propertyId, name, symbol, initialSupply, decimals, treasuryAccountId? }
+        // expected body: { propertyId, name, symbol, initialSupply, decimals, treasuryAccountId?, treasuryPrivateKey? }
         const payload = {
             propertyId: req.body.propertyId,
             name: req.body.name,
             symbol: req.body.symbol,
             initialSupply: req.body.initialSupply,
             decimals: req.body.decimals ?? 0,
-            treasuryAccountId: req.body.treasuryAccountId
+            treasuryAccountId: req.body.treasuryAccountId,
+            treasuryPrivateKey: req.body.treasuryPrivateKey
         };
 
         const missing = validateUtil.required(['propertyId', 'name', 'symbol', 'initialSupply'], payload);
         if (missing.length) {
-            return res.status(400).json(responseUtil.error('Validation error', { missing }));
+            return responseUtil.errorResponse(res, 'Validation error', 400, { missing });
         }
 
-        // Create HTS token on Hedera
-        const tokenInfo = await tokenService.createToken(payload);
-        // Persist token metadata locally (tokenId, propertyId, treasury, metadata)
-        const saved = await tokenModel.create({
-            tokenId: tokenInfo.tokenId,
-            propertyId: payload.propertyId,
-            name: payload.name,
-            symbol: payload.symbol,
-            decimals: payload.decimals,
-            totalSupply: tokenInfo.totalSupply,
-            treasury: tokenInfo.treasury,
-            metadata: tokenInfo.metadata || {}
-        });
+        // Delegate creation to tokenService (which updates property record)
+        const result = await tokenService.createToken(payload);
 
-        return res.status(201).json(responseUtil.success(saved, 'Token created'));
+        if (result.alreadyTokenized) {
+            return responseUtil.successResponse(res, { message: 'Property already tokenized', property: result.property }, 200);
+        }
+
+        // result contains tokenId, totalSupply, treasury, metadata, property, etc.
+        return responseUtil.successResponse(res, { token: {
+            tokenId: result.tokenId,
+            totalSupply: result.totalSupply,
+            treasury: result.treasury,
+            metadata: result.metadata
+        }, property: result.property, message: 'Token created' }, 201);
     } catch (err) {
         logger.error('createToken error', err);
         const formatted = errorUtil.format(err);
-        return res.status(formatted.status || 500).json(responseUtil.error(formatted.message, formatted));
+        return responseUtil.errorResponse(res, formatted.message, formatted.status || 500, formatted);
     }
 }
 
 async function getToken(req, res) {
     try {
-        const tokenId = req.params.id;
-        if (!tokenId) return res.status(400).json(responseUtil.error('token id required'));
+        // Using propertyId (service resolves tokenId via propertyModel)
+        const propertyId = req.params.id;
+        if (!propertyId) return responseUtil.errorResponse(res, 'property id required', 400);
 
-        // Try local DB first
-        let record = await tokenModel.findByTokenId(tokenId);
-        // Optionally refresh from chain if not found or query param ?refresh=true
-        if (!record || req.query.refresh === 'true') {
-            const chainInfo = await tokenService.getTokenInfo(tokenId);
-            record = record ? Object.assign(record, { chainInfo }) : { tokenId, chainInfo };
-        }
-
-        if (!record) return res.status(404).json(responseUtil.error('Token not found'));
-
-        return res.json(responseUtil.success(record));
+        const info = await tokenService.getTokenInfo(propertyId);
+        return responseUtil.successResponse(res, { propertyId, chainInfo: info });
     } catch (err) {
         logger.error('getToken error', err);
         const formatted = errorUtil.format(err);
-        return res.status(formatted.status || 500).json(responseUtil.error(formatted.message, formatted));
+        return responseUtil.errorResponse(res, formatted.message, formatted.status || 500, formatted);
     }
 }
 
 async function listTokens(req, res) {
     try {
-        const list = await tokenModel.listAll(req.query || {});
-        return res.json(responseUtil.success(list));
+        // Return token info for a single property (expecting ?id= or ?propertyId=)
+        const propertyId = req.query.id || req.query.propertyId;
+        if (!propertyId) {
+            return responseUtil.errorResponse(res, 'property id required as query param "id" or "propertyId"', 400);
+        }
+
+        const info = await tokenService.getTokenInfo(propertyId);
+        return responseUtil.successResponse(res, { propertyId, chainInfo: info });
     } catch (err) {
         logger.error('listTokens error', err);
         const formatted = errorUtil.format(err);
-        return res.status(formatted.status || 500).json(responseUtil.error(formatted.message, formatted));
+        return responseUtil.errorResponse(res, formatted.message, formatted.status || 500, formatted);
     }
 }
 
 async function mintToken(req, res) {
     try {
-        const tokenId = req.params.id;
-        const { amount } = req.body;
-        if (!tokenId || !amount) return res.status(400).json(responseUtil.error('token id and amount are required'));
+        const propertyId = req.params.id;
+        const { amount, treasuryAccountId, treasuryPrivateKey } = req.body;
+        if (!propertyId || amount == null) return responseUtil.errorResponse(res, 'property id and amount are required', 400);
 
-        // Mint on Hedera
-        const tx = await tokenService.mint(tokenId, amount);
-        // Update local record totalSupply if present
-        await tokenModel.incrementSupply(tokenId, amount);
+        // Mint on Hedera via service (service will use property's treasury if not provided)
+        const tx = await tokenService.mint(propertyId, amount, { treasuryAccountId, treasuryPrivateKey });
 
-        return res.json(responseUtil.success({ tokenId, amount, tx }, 'Mint successful'));
+        return responseUtil.successResponse(res, { propertyId, amount, tx, message: 'Mint successful' });
     } catch (err) {
         logger.error('mintToken error', err);
         const formatted = errorUtil.format(err);
-        return res.status(formatted.status || 500).json(responseUtil.error(formatted.message, formatted));
+        return responseUtil.errorResponse(res, formatted.message, formatted.status || 500, formatted);
     }
 }
 
 async function burnToken(req, res) {
     try {
-        const tokenId = req.params.id;
-        const { amount } = req.body;
-        if (!tokenId || !amount) return res.status(400).json(responseUtil.error('token id and amount are required'));
+        const propertyId = req.params.id;
+        const { amount, treasuryAccountId, treasuryPrivateKey } = req.body;
+        if (!propertyId || amount == null) return responseUtil.errorResponse(res, 'property id and amount are required', 400);
 
-        const tx = await tokenService.burn(tokenId, amount);
-        await tokenModel.decrementSupply(tokenId, amount);
+        const tx = await tokenService.burn(propertyId, amount, { treasuryAccountId, treasuryPrivateKey });
 
-        return res.json(responseUtil.success({ tokenId, amount, tx }, 'Burn successful'));
+        return responseUtil.successResponse(res, { propertyId, amount, tx, message: 'Burn successful' });
     } catch (err) {
         logger.error('burnToken error', err);
         const formatted = errorUtil.format(err);
-        return res.status(formatted.status || 500).json(responseUtil.error(formatted.message, formatted));
+        return responseUtil.errorResponse(res, formatted.message, formatted.status || 500, formatted);
     }
 }
 
 async function transferToken(req, res) {
     try {
-        const tokenId = req.params.id;
-        const { toAccountId, amount, memo } = req.body;
-        if (!tokenId || !toAccountId || !amount) return res.status(400).json(responseUtil.error('token id, toAccountId and amount are required'));
+        const propertyId = req.params.id;
+        const { toAccountId, amount, memo, treasuryAccountId, treasuryPrivateKey } = req.body;
+        console.log('transferToken called with', { propertyId, toAccountId, amount, memo });
+        if (!propertyId || !toAccountId || amount == null) return responseUtil.errorResponse(res, 'property id, toAccountId and amount are required', 400);
 
-        const tx = await tokenService.transfer(tokenId, toAccountId, amount, { memo });
+        const tx = await tokenService.transfer(propertyId, toAccountId, amount, { treasuryAccountId, treasuryPrivateKey, memo });
 
-        return res.json(responseUtil.success({ tokenId, toAccountId, amount, tx }, 'Transfer submitted'));
+        return responseUtil.successResponse(res, { propertyId, toAccountId, amount, tx, message: 'Transfer submitted' });
     } catch (err) {
         logger.error('transferToken error', err);
         const formatted = errorUtil.format(err);
-        return res.status(formatted.status || 500).json(responseUtil.error(formatted.message, formatted));
+        return responseUtil.errorResponse(res, formatted.message, formatted.status || 500, formatted);
     }
 }
 

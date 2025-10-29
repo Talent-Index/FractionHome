@@ -4,7 +4,8 @@ import holderRoutes from './routes/holderRoutes.js';
 import bodyParser from 'body-parser';
 import requestLogger from './middlewares/requestLogger.js';
 import errorHandler from './middlewares/errorHandler.js';
-import propertyRoutes from './routes/propertyRoutes.js';
+import routes from './routes/propertyRoutes.js';
+import auditRoutes from './routes/auditRoutes.js';
 
 // Purchase-related dependencies
 import HederaClient from './config/hederaClient.js';
@@ -44,6 +45,9 @@ const purchaseController = new PurchaseController(
 );
 
 // Routes
+app.use('/api/properties', routes);
+app.use('/api/audits', auditRoutes);
+
 app.use('/api/holders', holderRoutes);
 // app.use('/api/properties', propertyRoutes(purchaseController));
 

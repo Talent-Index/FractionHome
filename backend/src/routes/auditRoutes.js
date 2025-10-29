@@ -1,38 +1,33 @@
 import express from 'express';
-const router = express.Router();
+import {
+  uploadProperty,
+  getProperty,
+  verifyProperty,
+  listAll,
+} from '../controllers/propertyController.js';
 
-export default (auditController) => {
-  /**
-   * GET /api/audit/topic/:topicId
-   * Get all messages from an HCS topic
-   */
-  router.get('/topic/:topicId', (req, res) =>
-    auditController.getTopicMessages(req, res)
-  );
+export default class auditRoutes {
+  constructor(handlers = { uploadProperty, getProperty, verifyProperty, listAll }) {
+    this.handlers = handlers;
+    this.router = express.Router();
+    this.registerRoutes();
+  }
 
-  /**
-   * GET /api/audit/property/:propertyId
-   * Get complete audit trail for a property
-   */
-  router.get('/property/:propertyId', (req, res) =>
-    auditController.getPropertyAuditTrail(req, res)
-  );
+  registerRoutes() {
+    // POST /api/audit/property/upload
+    this.router.post('/property/upload', this.handlers.uploadProperty);
 
-  /**
-   * GET /api/audit/token/:tokenId
-   * Get complete audit trail for a token
-   */
-  router.get('/token/:tokenId', (req, res) =>
-    auditController.getTokenAuditTrail(req, res)
-  );
+    // GET /api/audit/property/:id/verify
+    this.router.get('/property/:id/verify', this.handlers.verifyProperty);
 
-  /**
-   * POST /api/audit/invalidate
-   * Manually invalidate cache
-   */
-  router.post('/invalidate', (req, res) =>
-    auditController.invalidateCache(req, res)
-  );
+    // GET /api/audit/property/:id
+    this.router.get('/property/:id', this.handlers.getProperty);
 
-  return router;
-};
+    // GET /api/audit/property
+    this.router.get('/property', this.handlers.listAll);
+  }
+
+  getRouter() {
+    return this.router;
+  }
+}

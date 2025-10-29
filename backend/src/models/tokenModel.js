@@ -1,9 +1,5 @@
-import db from '../db/index.js';
-
 // src/models/tokenModel.js
-// Lightweight token persistence layer used by controllers/services.
-// Supports lowdb-style db (db.get/..write) if available via ../db/index.js
-// Falls back to an in-memory store for tests/dev if no db is present.
+import db from '../db/index.js';
 
 class TokenModel {
     constructor(dbInstance = db) {
@@ -18,6 +14,7 @@ class TokenModel {
 
     ensureCollection() {
         if (this.isLowdb()) {
+            // Only initialize if not present
             if (!this.db.get(this.COLLECTION).value()) {
                 this.db.set(this.COLLECTION, []).write();
             }
@@ -32,38 +29,35 @@ class TokenModel {
         return record ? { ...record } : null;
     }
 
-    async create(payload) {
-        try {
-            const record = {
-                tokenId: payload.tokenId,
-                propertyId: payload.propertyId,
-                name: payload.name,
-                symbol: payload.symbol,
-                decimals: payload.decimals ?? 0,
-                totalSupply: Number(payload.totalSupply ?? 0),
-                treasury: payload.treasury ?? null,
-                metadata: payload.metadata ?? {},
-                createdAt: this.nowISO(),
-                updatedAt: this.nowISO()
-            };
+    // ❌ Remove async — all operations are sync
+    create(payload) {
+        const record = {
+            tokenId: payload.tokenId,
+            propertyId: payload.propertyId,
+            name: payload.name,
+            symbol: payload.symbol,
+            decimals: payload.decimals ?? 0,
+            totalSupply: Number(payload.totalSupply ?? 0),
+            treasury: payload.treasury ?? null,
+            metadata: payload.metadata ?? {},
+            createdAt: this.nowISO(),
+            updatedAt: this.nowISO()
+        };
 
-            if (this.isLowdb()) {
-                this.ensureCollection();
-                const exists = this.db.get(this.COLLECTION).find({ tokenId: record.tokenId }).value();
-                if (exists) throw new Error('Token already exists');
-                this.db.get(this.COLLECTION).push(record).write();
-                return this.normalize(record);
-            } else {
-                if (this.memoryStore.items.has(record.tokenId)) throw new Error('Token already exists');
-                this.memoryStore.items.set(record.tokenId, record);
-                return this.normalize(record);
-            }
-        } catch (err) {
-            throw err;
+        if (this.isLowdb()) {
+            this.ensureCollection();
+            const exists = this.db.get(this.COLLECTION).find({ tokenId: record.tokenId }).value();
+            if (exists) throw new Error('Token already exists');
+            this.db.get(this.COLLECTION).push(record).write();
+            return this.normalize(record);
+        } else {
+            if (this.memoryStore.items.has(record.tokenId)) throw new Error('Token already exists');
+            this.memoryStore.items.set(record.tokenId, record);
+            return this.normalize(record);
         }
     }
 
-    async findByTokenId(tokenId) {
+    findByTokenId(tokenId) {
         if (!tokenId) return null;
         if (this.isLowdb()) {
             this.ensureCollection();
@@ -75,7 +69,7 @@ class TokenModel {
         }
     }
 
-    async listAll(query = {}) {
+    listAll(query = {}) {
         const q = {
             propertyId: query.propertyId,
             symbol: query.symbol,
@@ -108,17 +102,26 @@ class TokenModel {
         };
     }
 
-    async incrementSupply(tokenId, amount) {
+    incrementSupply(tokenId, amount) {
         const delta = Number(amount);
         if (!tokenId || Number.isNaN(delta)) throw new Error('tokenId and numeric amount required');
 
         if (this.isLowdb()) {
             this.ensureCollection();
-            const found = this.db.get(this.COLLECTION).find({ tokenId }).value();
-            if (!found) throw new Error('Token not found');
-            const newSupply = Number(found.totalSupply || 0) + delta;
-            this.db.get(this.COLLECTION).find({ tokenId }).assign({ totalSupply: newSupply, updatedAt: this.nowISO() }).write();
-            return this.normalize(this.db.get(this.COLLECTION).find({ tokenId }).value());
+            const updated = this.db
+                .get(this.COLLECTION)
+                .find({ tokenId })
+                .assign({
+                    totalSupply: (prev) => {
+                        if (!prev) throw new Error('Token not found');
+                        return Number(prev.totalSupply || 0) + delta;
+                    },
+                    updatedAt: this.nowISO()
+                })
+                .write();
+
+            if (!updated) throw new Error('Token not found');
+            return this.normalize(updated);
         } else {
             const rec = this.memoryStore.items.get(tokenId);
             if (!rec) throw new Error('Token not found');
@@ -129,19 +132,29 @@ class TokenModel {
         }
     }
 
-    async decrementSupply(tokenId, amount) {
+    decrementSupply(tokenId, amount) {
         const delta = Number(amount);
         if (!tokenId || Number.isNaN(delta)) throw new Error('tokenId and numeric amount required');
 
         if (this.isLowdb()) {
             this.ensureCollection();
-            const found = this.db.get(this.COLLECTION).find({ tokenId }).value();
-            if (!found) throw new Error('Token not found');
-            const current = Number(found.totalSupply || 0);
-            const newSupply = current - delta;
-            if (newSupply < 0) throw new Error('Resulting totalSupply would be negative');
-            this.db.get(this.COLLECTION).find({ tokenId }).assign({ totalSupply: newSupply, updatedAt: this.nowISO() }).write();
-            return this.normalize(this.db.get(this.COLLECTION).find({ tokenId }).value());
+            const updated = this.db
+                .get(this.COLLECTION)
+                .find({ tokenId })
+                .assign({
+                    totalSupply: (prev) => {
+                        if (!prev) throw new Error('Token not found');
+                        const current = Number(prev.totalSupply || 0);
+                        const newSupply = current - delta;
+                        if (newSupply < 0) throw new Error('Resulting totalSupply would be negative');
+                        return newSupply;
+                    },
+                    updatedAt: this.nowISO()
+                })
+                .write();
+
+            if (!updated) throw new Error('Token not found');
+            return this.normalize(updated);
         } else {
             const rec = this.memoryStore.items.get(tokenId);
             if (!rec) throw new Error('Token not found');

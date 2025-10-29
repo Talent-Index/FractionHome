@@ -56,7 +56,38 @@ class HederaClient {
         let operatorAccountId, operatorPrivateKey;
         try {
             operatorAccountId = AccountId.fromString(operatorIdEnv);
-            operatorPrivateKey = PrivateKey.fromString(operatorKeyEnv);
+
+            // Prefer explicit constructors to avoid deprecated fromString()
+            const keyText = (operatorKeyEnv || '').trim();
+
+            try {
+                // If the key looks like a DER/PEM, try DER parser first
+                if (keyText.startsWith('-----BEGIN')) {
+                    // PEM may not be directly supported by the SDK; try DER parser as a best-effort
+                    operatorPrivateKey = PrivateKey.fromStringDer(keyText);
+                } else if (/^[0-9a-fA-F]+$/.test(keyText)) {
+                    // Hex string: try ED25519 first, then ECDSA
+                    try {
+                        operatorPrivateKey = PrivateKey.fromStringED25519(keyText);
+                    } catch (e) {
+                        operatorPrivateKey = PrivateKey.fromStringECDSA(keyText);
+                    }
+                } else {
+                    // Otherwise attempt ED25519, then ECDSA, then fall back to legacy parser
+                    try {
+                        operatorPrivateKey = PrivateKey.fromStringED25519(keyText);
+                    } catch (e1) {
+                        try {
+                            operatorPrivateKey = PrivateKey.fromStringECDSA(keyText);
+                        } catch (e2) {
+                            operatorPrivateKey = PrivateKey.fromString(keyText);
+                        }
+                    }
+                }
+            } catch (e) {
+                // final fallback to deprecated parser for compatibility
+                operatorPrivateKey = PrivateKey.fromString(operatorKeyEnv);
+            }
         } catch (err) {
             throw new Error('Invalid OPERATOR_ID or OPERATOR_KEY format.');
         }

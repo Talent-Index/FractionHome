@@ -1,40 +1,57 @@
-import { Low, JSONFile } from 'lowdb';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
+// File: backend/src/models/PropertyModel.js
 import db from '../db/index.js';
-
 
 class PropertyModel {
     constructor(dbInstance) {
+        // Accept injected db for testing, fallback to default
         this.db = dbInstance || db;
     }
 
-    async init() {
-        await this.db.read();
-        this.db.data = this.db.data || {};
-        this.db.data.properties = this.db.data.properties || [];
-        await this.db.write();
+    // No async init needed — your db loads collections at startup
+    // If you really need to ensure 'properties' exists, you can do:
+    ensurePropertiesCollection() {
+        const props = this.db.get('properties').value();
+        if (!Array.isArray(props)) {
+            this.db.set('properties', []).write();
+        }
     }
 
-    async createProperty(record) {
-        await this.db.read();
-        this.db.data = this.db.data || {};
-        this.db.data.properties = this.db.data.properties || [];
-        this.db.data.properties.push(record);
-        await this.db.write();
-        return record;
+    createProperty(record) {
+        // Synchronous
+        const result = this.db.get('properties').push(record).write();
+        return result; // already cloned
     }
 
-    async getPropertyById(id) {
-        await this.db.read();
-        const properties = (this.db.data && this.db.data.properties) || [];
-        return properties.find(p => p.id === id);
+    getPropertyById(id) {
+        // Synchronous
+        return this.db.get('properties').find({ id }).value();
     }
 
-    async listProperties() {
-        await this.db.read();
-        return (this.db.data && this.db.data.properties) || [];
+    findById(id) {
+        return this.getPropertyById(id);
+    }
+
+    listProperties() {
+        // Synchronous
+        return this.db.get('properties').value();
+    }
+
+    updateProperty(id, updates = {}) {
+        if (!id) throw new Error('id is required to update a property');
+
+        const existing = this.db.get('properties').find({ id }).value();
+        if (!existing) return null;
+
+        // Prevent changing the id
+        const { id: _ignore, ...rest } = updates;
+
+        const updated = this.db
+            .get('properties')
+            .find({ id })
+            .assign(rest)
+            .write();
+
+        return updated;
     }
 }
 

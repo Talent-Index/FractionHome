@@ -1,3 +1,4 @@
+// File: backend/src/models/HCSModel.js
 import { v4 as uuidv4 } from 'uuid';
 
 class HCSModel {
@@ -6,7 +7,7 @@ class HCSModel {
     this.collection = 'hcs_records';
   }
 
-  async create(hcsData) {
+  create(hcsData) {
     const record = {
       id: uuidv4(),
       topicId: hcsData.topicId,
@@ -18,32 +19,27 @@ class HCSModel {
       createdAt: new Date().toISOString()
     };
 
-    await this.db.get(this.collection).push(record).write();
+    // Synchronous write
+    this.db.get(this.collection).push(record).write();
     return record;
   }
 
-  async findByPropertyId(propertyId) {
-    return this.db.get(this.collection)
-      .find({ propertyId })
-      .value();
+  findByPropertyId(propertyId) {
+    return this.db.get(this.collection).find({ propertyId }).value();
   }
 
-  async findByTokenId(tokenId) {
-    return this.db.get(this.collection)
-      .find({ tokenId })
-      .value();
+  findByTokenId(tokenId) {
+    return this.db.get(this.collection).find({ tokenId }).value();
   }
 
-  async findByTopicId(topicId) {
-    return this.db.get(this.collection)
-      .filter({ topicId })
-      .value();
+  findByTopicId(topicId) {
+    // Since your db doesn't support .filter(), get all and filter in JS
+    const all = this.db.get(this.collection).value();
+    return all.filter(record => record.topicId === topicId);
   }
 
-  async findByMessageId(messageId) {
-    return this.db.get(this.collection)
-      .find({ messageId })
-      .value();
+  findByMessageId(messageId) {
+    return this.db.get(this.collection).find({ messageId }).value();
   }
 }
 
