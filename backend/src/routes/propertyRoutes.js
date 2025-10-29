@@ -30,7 +30,8 @@ router.post('/', upload.array('files'), propertyCtrl.uploadProperty);
 router.post('/:id/photo', upload.single('file'), propertyCtrl.uploadPhoto);
 router.get('/', propertyCtrl.listAll);
 router.get('/:id', propertyCtrl.getProperty);
-router.get('/:id/verify', propertyCtrl.verifyProperty);
+
+// router.get('/:id/verify', propertyCtrl.verifyProperty);
 
 router.post('/:id/tokenize', (req, res) => {
   req.body = req.body || {};

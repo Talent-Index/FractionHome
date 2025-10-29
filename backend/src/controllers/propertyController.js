@@ -6,18 +6,39 @@ const propertyModel = new PropertyModel();
 
 async function uploadProperty(req, res, next) {
     try {
-        const { canonical, metadataCid, canonicalHash, media } = req.body || {};
-        if (!canonical || !canonical.id) {
-            return res.status(400).json({ error: 'Missing canonical id' });
+
+        const { valuation, title, address, description } = req.body || {};
+
+        let parsedValuation = null;
+        if (valuation !== undefined && valuation !== null) {
+            parsedValuation = Number(valuation);
+            if (Number.isNaN(parsedValuation)) {
+                return res.status(400).json({ error: 'Invalid valuation' });
+            }
         }
 
         const record = {
-            id: canonical.id,
-            metadataCid,
-            canonicalHash,
-            createdAt: canonical.createdAt,
-            preview: Array.isArray(media) ? media[0] || null : media || null,
+            valuation: parsedValuation,
+            title: title ?? null,
+            address: address ?? null,
+            description: description ?? null,
         };
+
+        let id;
+        if (typeof globalThis.crypto?.randomUUID === 'function') {
+            id = globalThis.crypto.randomUUID();
+        } else {
+            try {
+                const { v4: uuidv4 } = await import('uuid');
+                id = uuidv4();
+            } catch (e) {
+                // Fallback: deterministic-ish id using sha256Hex of timestamp+random
+                const now = Date.now().toString();
+                const rnd = Math.random().toString(36).slice(2);
+                id = sha256Hex(now + rnd).slice(0, 32);
+            }
+        }
+        record.id = id;
 
         await propertyModel.createProperty(record);
 
@@ -113,6 +134,47 @@ async function uploadPhoto(req, res, next) {
         const cid = (data && (data.IpfsHash || data.ipfs_hash || data.cid)) || null;
         const gatewayBase = process.env.PINATA_GATEWAY || 'https://gateway.pinata.cloud/ipfs';
         const gateway = cid ? `${gatewayBase.replace(/\/+$/, '')}/${cid}` : null;
+
+        const id = req.params.id;
+        try {
+            // prefer any gateway/url provided in the pin response payload, fall back to computed gateway
+            const payloadLink =
+                data && (data.gateway || data.gatewayUrl || data.gateway_url || data.url || data.file || data.IpfsHash)
+                    ? (data.gateway || data.gatewayUrl || data.gateway_url || data.url || data.file)
+                    : null;
+
+            const imageLink = payloadLink
+                ? (payloadLink.startsWith('http') ? payloadLink : `${gatewayBase ? gatewayBase.replace(/\/+$/, '') : 'https://gateway.pinata.cloud/ipfs'}/${payloadLink}`)
+                : gateway;
+
+            if (id && imageLink) {
+                const prop = await propertyModel.getPropertyById(id);
+                if (prop) {
+                    const updates = {};
+
+                    // maintain "media" array
+                    const media = Array.isArray(prop.media) ? [...prop.media] : [];
+                    if (!media.includes(imageLink)) media.push(imageLink);
+                    updates.media = media;
+
+                    // also support a "photos" array if the model uses that field
+                    const photos = Array.isArray(prop.photos) ? [...prop.photos] : [];
+                    if (!photos.includes(imageLink)) photos.push(imageLink);
+                    updates.photos = photos;
+
+                    // update preview to first media item
+                    updates.preview = media[0] || photos[0] || null;
+
+                    await propertyModel.updateProperty(id, updates);
+                } else {
+                    // property not found - don't fail the upload; optionally log
+                    // console.warn && console.warn(`Property ${id} not found to attach photo`);
+                }
+            }
+        } catch (updateErr) {
+            // don't block the response on update failures; optionally log
+            // console.error && console.error('Failed updating property with photo:', updateErr);
+        }
 
         return res.json({ ok: true, cid, gateway, ipfsResult: data });
     } catch (err) {
