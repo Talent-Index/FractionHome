@@ -46,3 +46,40 @@ export const getTokenHolders = (tokenId, useCache = true) =>
 
 export const getTokenTransfers = (tokenId, limit = 25, useCache = true) =>
   apiFetch(`/api/holders/${tokenId}/transfers?limit=${limit}&useCache=${useCache}`);
+
+// Tokenization
+export const tokenizeProperty = async (propertyId, tokenizationDetails) => {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE}/api/properties/${propertyId}/tokenize`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(tokenizationDetails)
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to tokenize property');
+  }
+  return response.json();
+};
+
+export const getPropertyById = async (propertyId) => {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE}/api/properties/${propertyId}`);
+  
+  if (!response.ok) {
+    console.error('API Error:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url
+    });
+    throw new Error(`Failed to fetch property details: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  // Return the nested property object from the response
+  if (!data.ok || !data.property) {
+    throw new Error('Property not found');
+  }
+  
+  return data.property;
+};

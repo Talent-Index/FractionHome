@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { getProperty, updateProperty, saveTransaction } from "@/utils/storage";
+import { updateProperty, saveTransaction } from "@/utils/storage";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  ArrowLeft,
   MapPin,
   Coins,
   Hash,
@@ -15,27 +14,38 @@ import { TokenizeModal } from "./TokenizeModal";
 import { BuyWidget } from "./BuyWidget";
 import { OwnershipDashboard } from "./OwnershipDashboard";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
 
-export const PropertyDetail = ({ propertyId, onBack }) => {
-  const [property, setProperty] = useState(null);
+export const PropertyDetail = ({ property, onBack }) => {
+  const [currentProperty, setCurrentProperty] = useState(property || null);
   const [showTokenizeModal, setShowTokenizeModal] = useState(false);
+  const navigate = useNavigate();
 
+  // ✅ Keep local state synced with prop
   useEffect(() => {
-    const prop = getProperty(propertyId);
-    setProperty(prop || null);
-  }, [propertyId]);
+    if (property) {
+      setCurrentProperty(property);
+    }
+  }, [property]);
 
+  // ✅ Handle successful tokenization
   const handleTokenizeSuccess = (txId, eventId, tokenId) => {
-    if (!property) return;
+    if (!currentProperty) return;
 
-    updateProperty(property.id, {
+    const updated = {
+      ...currentProperty,
+      tokenId,
+      hcsEventId: eventId,
+    };
+
+    updateProperty(currentProperty.id, {
       tokenId,
       hcsEventId: eventId,
     });
 
     saveTransaction({
       id: Date.now().toString(),
-      propertyId: property.id,
+      propertyId: currentProperty.id,
       type: "tokenize",
       amount: 0,
       txId,
@@ -43,22 +53,23 @@ export const PropertyDetail = ({ propertyId, onBack }) => {
       timestamp: new Date().toISOString(),
     });
 
-    setProperty({ ...property, tokenId, hcsEventId: eventId });
+    setCurrentProperty(updated);
     toast.success("Property tokenized successfully!");
   };
 
+  // ✅ Handle purchase
   const handlePurchase = (amount, txId, eventId) => {
-    if (!property) return;
+    if (!currentProperty) return;
 
-    const newOwnedTokens = (property.ownedTokens || 0) + amount;
+    const newOwnedTokens = (currentProperty.ownedTokens || 0) + amount;
 
-    updateProperty(property.id, {
+    updateProperty(currentProperty.id, {
       ownedTokens: newOwnedTokens,
     });
 
     saveTransaction({
       id: Date.now().toString(),
-      propertyId: property.id,
+      propertyId: currentProperty.id,
       type: "purchase",
       amount,
       txId,
@@ -66,10 +77,16 @@ export const PropertyDetail = ({ propertyId, onBack }) => {
       timestamp: new Date().toISOString(),
     });
 
-    setProperty({ ...property, ownedTokens: newOwnedTokens });
+    setCurrentProperty({
+      ...currentProperty,
+      ownedTokens: newOwnedTokens,
+    });
+
+    toast.success(`Purchased ${amount} tokens successfully!`);
   };
 
-  if (!property) {
+  // ✅ Handle missing property
+  if (!currentProperty) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <p className="text-muted-foreground">Property not found</p>
@@ -77,25 +94,38 @@ export const PropertyDetail = ({ propertyId, onBack }) => {
     );
   }
 
-  const pricePerToken = property.valuation / property.totalSupply;
+  const {
+    title,
+    address,
+    description,
+    valuation,
+    totalSupply = 1, // prevent divide-by-zero
+    latitude = 0,
+    longitude = 0,
+    imageUrl,
+    contentHash,
+    tokenId,
+    hcsEventId,
+  } = currentProperty;
+
+  const pricePerToken = valuation / totalSupply;
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8">
-        <Button variant="ghost" onClick={onBack} className="mb-6">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Properties
+        <Button variant="outline" onClick={() => navigate(-1)} className="mb-6">
+          ← Back to Properties
         </Button>
 
         <div className="grid lg:grid-cols-3 gap-8">
-          {/* Main Content */}
+          {/* ---------- MAIN CONTENT ---------- */}
           <div className="lg:col-span-2 space-y-6">
             {/* Hero Image */}
             <Card className="overflow-hidden shadow-card animate-fade-in">
               <div className="aspect-video overflow-hidden bg-muted">
                 <img
-                  src={property.imageUrl}
-                  alt={property.title}
+                  src={imageUrl}
+                  alt={title}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -105,31 +135,30 @@ export const PropertyDetail = ({ propertyId, onBack }) => {
             <Card className="p-6 shadow-card animate-slide-up">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h1 className="text-3xl font-bold mb-2">{property.title}</h1>
+                  <h1 className="text-3xl font-bold mb-2">{title}</h1>
                   <div className="flex items-center text-muted-foreground gap-1">
                     <MapPin className="h-4 w-4" />
-                    <span>{property.address}</span>
+                    <span>{address}</span>
                   </div>
                 </div>
-                {property.tokenId && (
+                {tokenId && (
                   <Badge className="bg-success/10 text-success hover:bg-success/20">
                     Tokenized
                   </Badge>
                 )}
               </div>
 
+              {/* Stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                 <div className="bg-accent/50 p-3 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1">Valuation</p>
                   <p className="text-lg font-bold text-primary">
-                    ${property.valuation.toLocaleString()}
+                    ${valuation.toLocaleString()}
                   </p>
                 </div>
                 <div className="bg-accent/50 p-3 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1">Total Supply</p>
-                  <p className="text-lg font-bold">
-                    {property.totalSupply.toLocaleString()}
-                  </p>
+                  <p className="text-lg font-bold">{totalSupply.toLocaleString()}</p>
                 </div>
                 <div className="bg-accent/50 p-3 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1">Price/Token</p>
@@ -138,22 +167,24 @@ export const PropertyDetail = ({ propertyId, onBack }) => {
                 <div className="bg-accent/50 p-3 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1">Coordinates</p>
                   <p className="text-xs font-mono">
-                    {property.latitude.toFixed(4)}, {property.longitude.toFixed(4)}
+                    {latitude.toFixed(4)}, {longitude.toFixed(4)}
                   </p>
                 </div>
               </div>
 
+              {/* Description */}
               <div>
                 <h3 className="font-semibold mb-2 flex items-center gap-2">
                   <FileText className="h-4 w-4" />
                   Description
                 </h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  {property.description}
+                  {description}
                 </p>
               </div>
 
-              {property.contentHash && (
+              {/* Content Hash */}
+              {contentHash && (
                 <div className="mt-6 pt-6 border-t border-border">
                   <div className="flex items-start gap-2">
                     <Hash className="h-4 w-4 text-muted-foreground mt-1" />
@@ -162,25 +193,26 @@ export const PropertyDetail = ({ propertyId, onBack }) => {
                         Content Hash (SHA-256)
                       </p>
                       <p className="text-xs font-mono text-foreground break-all bg-muted p-2 rounded">
-                        {property.contentHash}
+                        {contentHash}
                       </p>
                     </div>
                   </div>
                 </div>
               )}
 
-              {property.tokenId && (
+              {/* Token Info */}
+              {tokenId && (
                 <div className="mt-4 space-y-3">
                   <div className="flex items-start gap-2">
                     <Coins className="h-4 w-4 text-muted-foreground mt-1" />
                     <div className="flex-1">
                       <p className="text-xs text-muted-foreground mb-1">Token ID</p>
                       <p className="text-sm font-mono text-foreground bg-muted p-2 rounded">
-                        {property.tokenId}
+                        {tokenId}
                       </p>
                     </div>
                   </div>
-                  {property.hcsEventId && (
+                  {hcsEventId && (
                     <div className="flex items-start gap-2">
                       <ExternalLink className="h-4 w-4 text-muted-foreground mt-1" />
                       <div className="flex-1">
@@ -188,7 +220,7 @@ export const PropertyDetail = ({ propertyId, onBack }) => {
                           HCS Event ID
                         </p>
                         <p className="text-sm font-mono text-foreground bg-muted p-2 rounded break-all">
-                          {property.hcsEventId}
+                          {hcsEventId}
                         </p>
                       </div>
                     </div>
@@ -196,7 +228,8 @@ export const PropertyDetail = ({ propertyId, onBack }) => {
                 </div>
               )}
 
-              {!property.tokenId && (
+              {/* Tokenize button */}
+              {!tokenId && (
                 <div className="mt-6">
                   <Button
                     onClick={() => setShowTokenizeModal(true)}
@@ -211,21 +244,24 @@ export const PropertyDetail = ({ propertyId, onBack }) => {
             </Card>
           </div>
 
-          {/* Sidebar */}
+          {/* ---------- SIDEBAR ---------- */}
           <div className="space-y-6">
-            {property.tokenId && (
+            {tokenId && (
               <>
                 <div
                   className="animate-slide-up"
                   style={{ animationDelay: "0.1s" }}
                 >
-                  <BuyWidget property={property} onPurchase={handlePurchase} />
+                  <BuyWidget
+                    property={currentProperty}
+                    onPurchase={handlePurchase}
+                  />
                 </div>
                 <div
                   className="animate-slide-up"
                   style={{ animationDelay: "0.2s" }}
                 >
-                  <OwnershipDashboard property={property} />
+                  <OwnershipDashboard property={currentProperty} />
                 </div>
               </>
             )}
@@ -237,7 +273,7 @@ export const PropertyDetail = ({ propertyId, onBack }) => {
         open={showTokenizeModal}
         onClose={() => setShowTokenizeModal(false)}
         onSuccess={handleTokenizeSuccess}
-        propertyTitle={property.title}
+        propertyTitle={title}
       />
     </div>
   );

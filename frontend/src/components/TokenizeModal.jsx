@@ -1,112 +1,113 @@
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle2, Coins } from "lucide-react";
-import { generateTxId, generateEventId, generateTokenId, simulateBlockchainDelay } from "@/utils/mockHedera";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { tokenizeProperty } from '@/services/backendApi';
 
-export const TokenizeModal = ({ open, onClose, onSuccess, propertyTitle }) => {
-  const [stage, setStage] = useState("idle");
-  const [txId, setTxId] = useState("");
-  const [eventId, setEventId] = useState("");
-  const [tokenId, setTokenId] = useState("");
+export const TokenizeModal = ({ property, isOpen, onClose, onSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    totalSupply: "",
+    tokenName: "",
+    tokenSymbol: "",
+  });
 
-  const handleTokenize = async () => {
-    setStage("creating");
-    await simulateBlockchainDelay(2000);
-
-    const newTokenId = generateTokenId();
-    setTokenId(newTokenId);
-    setStage("confirming");
-    await simulateBlockchainDelay(1500);
-
-    const newTxId = generateTxId();
-    const newEventId = generateEventId();
-    setTxId(newTxId);
-    setEventId(newEventId);
-    setStage("success");
-
-    setTimeout(() => {
-      onSuccess(newTxId, newEventId, newTokenId);
-      handleClose();
-    }, 2000);
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  const handleClose = () => {
-    setStage("idle");
-    setTxId("");
-    setEventId("");
-    setTokenId("");
-    onClose();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const tokenDetails = {
+        ...formData,
+        totalSupply: parseInt(formData.totalSupply),
+        propertyId: property.id
+      };
+
+      const result = await tokenizeProperty(property.id, tokenDetails);
+      
+      toast.success("Property successfully tokenized!");
+      onSuccess?.(result);
+      onClose();
+    } catch (error) {
+      toast.error(error.message || "Failed to tokenize property");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Tokenize Property</DialogTitle>
+          <DialogTitle>Tokenize Property</DialogTitle>
         </DialogHeader>
 
-        <div className="py-6">
-          {stage === "idle" && (
-            <div className="text-center space-y-4">
-              <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                <Coins className="h-8 w-8 text-primary" />
-              </div>
-              <p className="text-muted-foreground">
-                Ready to tokenize{" "}
-                <span className="font-semibold text-foreground">{propertyTitle}</span> on Hedera blockchain?
-              </p>
-              <Button onClick={handleTokenize} className="w-full" size="lg">
-                Start Tokenization
-              </Button>
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <div>
+            <Label htmlFor="tokenName">Token Name</Label>
+            <Input
+              id="tokenName"
+              name="tokenName"
+              value={formData.tokenName}
+              onChange={handleInputChange}
+              placeholder="e.g., Property Token"
+              required
+            />
+          </div>
 
-          {stage === "creating" && (
-            <div className="text-center space-y-4">
-              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-              <p className="font-medium">Creating token on Hedera...</p>
-              <p className="text-sm text-muted-foreground">
-                Please wait while we process your request
-              </p>
-            </div>
-          )}
+          <div>
+            <Label htmlFor="tokenSymbol">Token Symbol</Label>
+            <Input
+              id="tokenSymbol"
+              name="tokenSymbol"
+              value={formData.tokenSymbol}
+              onChange={handleInputChange}
+              placeholder="e.g., PROP"
+              required
+            />
+          </div>
 
-          {stage === "confirming" && (
-            <div className="text-center space-y-4">
-              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-              <p className="font-medium">Confirming transaction...</p>
-              <div className="bg-muted p-3 rounded-lg">
-                <p className="text-xs text-muted-foreground mb-1">Token ID</p>
-                <p className="text-sm font-mono">{tokenId}</p>
-              </div>
-            </div>
-          )}
+          <div>
+            <Label htmlFor="totalSupply">Total Supply</Label>
+            <Input
+              id="totalSupply"
+              name="totalSupply"
+              type="number"
+              min="1"
+              value={formData.totalSupply}
+              onChange={handleInputChange}
+              placeholder="Enter total number of tokens"
+              required
+            />
+          </div>
 
-          {stage === "success" && (
-            <div className="text-center space-y-4 animate-fade-in">
-              <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center">
-                <CheckCircle2 className="h-8 w-8 text-success" />
-              </div>
-              <p className="font-semibold text-lg">Tokenization Successful!</p>
-
-              <div className="space-y-3 text-left">
-                <div className="bg-muted p-3 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Token ID</p>
-                  <p className="text-sm font-mono break-all">{tokenId}</p>
-                </div>
-                <div className="bg-muted p-3 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">Transaction ID</p>
-                  <p className="text-sm font-mono break-all">{txId}</p>
-                </div>
-                <div className="bg-muted p-3 rounded-lg">
-                  <p className="text-xs text-muted-foreground mb-1">HCS Event ID</p>
-                  <p className="text-sm font-mono break-all">{eventId}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+          <div className="flex justify-end gap-4 mt-6">
+            <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Tokenizing...
+                </>
+              ) : (
+                "Tokenize Property"
+              )}
+            </Button>
+          </div>
+        </form>
       </DialogContent>
     </Dialog>
   );
