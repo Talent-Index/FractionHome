@@ -1,16 +1,48 @@
 import { useState, useEffect } from "react";
-import { getProperties } from "@/utils/storage";
 import { PropertyCard } from "./PropertyCard";
+import { Loader2 } from "lucide-react";
+import { getProperties } from "@/services/backendApi";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import heroImage from "@/assets/hero-property.jpg";
 
 export const PropertyList = ({ onPropertyClick, onUploadClick }) => {
   const [properties, setProperties] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    setProperties(getProperties());
-  }, []);
+ const fetchProperties = async () => {
+  try {
+    const data = await getProperties();
+    console.log("Fetched properties:", data);
+    setProperties(data.items || []); // ✅ Fix here
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+  fetchProperties();
+}, []);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-[200px]">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center text-red-500 p-4">
+        Error loading properties: {error}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

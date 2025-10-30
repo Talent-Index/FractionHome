@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Loader2, ShoppingCart } from "lucide-react";
 import { toast } from "sonner";
+import { buyTokens } from "@/services/backendApi";
 
 export const BuyWidget = ({ property, onPurchase }) => {
   const [amount, setAmount] = useState("");
@@ -31,16 +32,22 @@ export const BuyWidget = ({ property, onPurchase }) => {
     setLoading(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      // Call backend API - ensure frontend/src/services/backendApi.js exports buyTokens(propertyId, body)
+      const resp = await buyTokens(property.id || property._id || property.tokenId, {
+        amount: tokenAmount
+      });
 
-      const txId = `0.0.${Math.floor(Math.random() * 1000000)}@${Date.now()}`;
-      const eventId = `0.0.${Math.floor(Math.random() * 1000000)}-${Date.now()}`;
+      // Backend should return transaction identifiers and/or updated state.
+      // Try common fields, fallback to generated placeholders if missing.
+      const txId = resp?.txId || resp?.transactionId || resp?.transaction?.id || `0.0.${Math.floor(Math.random() * 1000000)}@${Date.now()}`;
+      const eventId = resp?.eventId || resp?.event?.id || `evt-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
 
+      // Notify parent to update UI (component expects onPurchase(tokenAmount, txId, eventId))
       onPurchase(tokenAmount, txId, eventId);
       toast.success(`Successfully purchased ${tokenAmount} tokens!`);
       setAmount("");
     } catch (error) {
-      toast.error("Purchase failed");
+      toast.error(error?.message || "Purchase failed");
     } finally {
       setLoading(false);
     }

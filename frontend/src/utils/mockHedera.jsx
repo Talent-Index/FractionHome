@@ -1,4 +1,5 @@
 // Mock Hedera blockchain utilities
+// import { buyTokens } from "../services/backendApi";
 
 export const generateTxId = () => {
   const timestamp = Date.now();

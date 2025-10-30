@@ -19,6 +19,14 @@ import PurchaseController from './controllers/purchaseController.js';
 
 const app = express();
 
+import cors from "cors";
+
+app.use(cors({
+  origin: "http://localhost:8080",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true,
+}));
+
 app.use(bodyParser.json());
 app.use(requestLogger);
 

@@ -1,41 +1,95 @@
 import { useState } from "react";
-import { saveProperty } from "@/utils/storage";
-import { generateContentHash } from "@/utils/mockHedera";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, Upload, Loader2 } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 import { toast } from "sonner";
+
+// Base API URL from environment
+const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
 export const UploadForm = ({ onBack, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [propertyId, setPropertyId] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
     address: "",
-    latitude: "",
-    longitude: "",
     valuation: "",
-    totalSupply: "",
     description: "",
   });
 
   const handleImageUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Image size must be less than 2MB");
-      return;
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
     }
+  };
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result);
-    };
-    reader.readAsDataURL(file);
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const uploadPropertyDetails = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/properties`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      if (!data.ok || !data.record?.id) {
+        throw new Error('Invalid response from server');
+      }
+
+      return data.record.id;
+    } catch (error) {
+      console.error('Error uploading property:', error);
+      throw error;
+    }
+  };
+
+  const uploadPropertyImage = async (propertyId) => {
+    if (!selectedFile) return null;
+
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+
+    try {
+      const response = await fetch(`${API_BASE}/api/properties/${propertyId}/photo`, {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -43,194 +97,116 @@ export const UploadForm = ({ onBack, onSuccess }) => {
     setLoading(true);
 
     try {
-      const property = {
-        id: Date.now().toString(),
-        title: formData.title,
-        address: formData.address,
-        latitude: parseFloat(formData.latitude),
-        longitude: parseFloat(formData.longitude),
-        valuation: parseFloat(formData.valuation),
-        totalSupply: parseInt(formData.totalSupply),
-        description: formData.description,
-        imageUrl: imagePreview,
-        createdAt: new Date().toISOString(),
-      };
+      // Step 1: Upload property details
+      const newPropertyId = await uploadPropertyDetails();
+      setPropertyId(newPropertyId);
 
-      const contentHash = await generateContentHash({
-        title: property.title,
-        address: property.address,
-        valuation: property.valuation,
-        totalSupply: property.totalSupply,
-      });
+      // Step 2: Upload image if selected
+      if (selectedFile) {
+        await uploadPropertyImage(newPropertyId);
+      }
 
-      property.contentHash = contentHash;
-
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      saveProperty(property);
-      toast.success("Property uploaded successfully!");
-      onSuccess(property.id);
+      toast.success("Property created successfully!");
+      onSuccess?.();
     } catch (error) {
-      toast.error("Failed to upload property");
+      toast.error(error.message || "Failed to create property");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="container mx-auto px-4 max-w-3xl">
-        <Button variant="ghost" onClick={onBack} className="mb-6">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Properties
-        </Button>
+    <Card className="p-6 max-w-2xl mx-auto">
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="title">Property Title</Label>
+            <Input
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
 
-        <Card className="p-8 shadow-card animate-slide-up">
-          <h1 className="text-3xl font-bold mb-2 text-foreground">Upload Property</h1>
-          <p className="text-muted-foreground mb-8">
-            Add property details to prepare for tokenization
-          </p>
+          <div>
+            <Label htmlFor="address">Address</Label>
+            <Input
+              id="address"
+              name="address"
+              value={formData.address}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <Label htmlFor="title">Property Title *</Label>
-              <Input
-                id="title"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                required
-                placeholder="e.g., Luxury Downtown Apartment"
-              />
-            </div>
+          <div>
+            <Label htmlFor="valuation">Valuation ($)</Label>
+            <Input
+              id="valuation"
+              name="valuation"
+              type="number"
+              min="0"
+              value={formData.valuation}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
 
-            <div>
-              <Label htmlFor="address">Address *</Label>
-              <Input
-                id="address"
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                required
-                placeholder="123 Main St, City, State"
-              />
-            </div>
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleInputChange}
+              required
+            />
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="latitude">Latitude *</Label>
-                <Input
-                  id="latitude"
-                  type="number"
-                  step="any"
-                  value={formData.latitude}
-                  onChange={(e) => setFormData({ ...formData, latitude: e.target.value })}
-                  required
-                  placeholder="40.7128"
-                />
-              </div>
-              <div>
-                <Label htmlFor="longitude">Longitude *</Label>
-                <Input
-                  id="longitude"
-                  type="number"
-                  step="any"
-                  value={formData.longitude}
-                  onChange={(e) => setFormData({ ...formData, longitude: e.target.value })}
-                  required
-                  placeholder="-74.0060"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="valuation">Valuation ($) *</Label>
-                <Input
-                  id="valuation"
-                  type="number"
-                  value={formData.valuation}
-                  onChange={(e) => setFormData({ ...formData, valuation: e.target.value })}
-                  required
-                  placeholder="1000000"
-                />
-              </div>
-              <div>
-                <Label htmlFor="totalSupply">Total Token Supply *</Label>
-                <Input
-                  id="totalSupply"
-                  type="number"
-                  value={formData.totalSupply}
-                  onChange={(e) => setFormData({ ...formData, totalSupply: e.target.value })}
-                  required
-                  placeholder="10000"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="description">Description *</Label>
-              <Textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                required
-                rows={4}
-                placeholder="Detailed property description..."
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="image">Property Image * (max 2MB)</Label>
+          <div>
+            <Label htmlFor="image">Property Image</Label>
+            <Input
+              id="image"
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="mt-1"
+            />
+            {imagePreview && (
               <div className="mt-2">
-                {imagePreview ? (
-                  <div className="relative">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      className="mt-2"
-                      onClick={() => setImagePreview("")}
-                    >
-                      Change Image
-                    </Button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-smooth">
-                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
-                    <span className="text-sm text-muted-foreground">Click to upload image</span>
-                    <input
-                      id="image"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      required
-                      className="hidden"
-                    />
-                  </label>
-                )}
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="max-w-xs rounded-lg"
+                />
               </div>
-            </div>
+            )}
+          </div>
+        </div>
 
-            <Button type="submit" disabled={loading} className="w-full" size="lg">
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <Upload className="mr-2 h-5 w-5" />
-                  Upload Property
-                </>
-              )}
-            </Button>
-          </form>
-        </Card>
-      </div>
-    </div>
+        <div className="flex justify-end gap-4">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onBack}
+            disabled={loading}
+          >
+            Back
+          </Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              "Create Property"
+            )}
+          </Button>
+        </div>
+      </form>
+    </Card>
   );
 };
