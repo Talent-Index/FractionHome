@@ -13,7 +13,7 @@ const successResponse = (res, data, statusCode = 200) => {
  * Standard error response formatter
  */
 const errorResponse = (res, message, statusCode = 500, errors = null) => {
-  return res.status(statusCode).json({
+  return res.status(typeof statusCode === "number" ? statusCode : 500).json({
     success: false,
     error: {
       message,
@@ -22,8 +22,7 @@ const errorResponse = (res, message, statusCode = 500, errors = null) => {
     },
     timestamp: new Date().toISOString()
   });
-};
-
+}
 /**
  * Pagination metadata
  */

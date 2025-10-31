@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,9 +10,10 @@ import { tokenizeProperty } from '@/services/backendApi';
 export const TokenizeModal = ({ property, isOpen, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    totalSupply: "",
-    tokenName: "",
-    tokenSymbol: "",
+    tokenName: '',
+    tokenSymbol: '',
+    initialSupply: '',
+    treasuryAccountId: '',
   });
 
   const handleInputChange = (e) => {
@@ -30,17 +31,16 @@ export const TokenizeModal = ({ property, isOpen, onClose, onSuccess }) => {
     try {
       const tokenDetails = {
         ...formData,
-        totalSupply: parseInt(formData.totalSupply),
-        propertyId: property.id
+        initialSupply: parseInt(formData.initialSupply),
       };
 
       const result = await tokenizeProperty(property.id, tokenDetails);
-      
-      toast.success("Property successfully tokenized!");
+      toast.success('Property successfully tokenized!');
       onSuccess?.(result);
       onClose();
     } catch (error) {
-      toast.error(error.message || "Failed to tokenize property");
+      console.error('Tokenization error:', error);
+      toast.error(error.message || 'Failed to tokenize property');
     } finally {
       setLoading(false);
     }
@@ -79,13 +79,13 @@ export const TokenizeModal = ({ property, isOpen, onClose, onSuccess }) => {
           </div>
 
           <div>
-            <Label htmlFor="totalSupply">Total Supply</Label>
+            <Label htmlFor="initialSupply">Initial Supply</Label>
             <Input
-              id="totalSupply"
-              name="totalSupply"
+              id="initialSupply"
+              name="initialSupply"
               type="number"
               min="1"
-              value={formData.totalSupply}
+              value={formData.initialSupply}
               onChange={handleInputChange}
               placeholder="Enter total number of tokens"
               required
@@ -112,3 +112,6 @@ export const TokenizeModal = ({ property, isOpen, onClose, onSuccess }) => {
     </Dialog>
   );
 };
+
+// Make sure to add a default export
+export default TokenizeModal;

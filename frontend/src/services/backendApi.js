@@ -1,5 +1,9 @@
 import { apiFetch } from '../config/api';
 
+const BUYER1_ACCOUNT_ID = import.meta.env.VITE_BUYER1_ACCOUNT_ID;
+const BUYER1_PRIVATE_KEY = import.meta.env.VITE_BUYER1_PRIVATE_KEY;
+console.log("ENV CHECK:", BUYER1_ACCOUNT_ID, BUYER1_PRIVATE_KEY);
+
 // Properties
 export const listProperties = () => apiFetch('/api/properties');
 // export const getProperty = (id) => apiFetch(`/api/properties/${id}`);
@@ -48,21 +52,35 @@ export const getTokenTransfers = (tokenId, limit = 25, useCache = true) =>
   apiFetch(`/api/holders/${tokenId}/transfers?limit=${limit}&useCache=${useCache}`);
 
 // Tokenization
-export const tokenizeProperty = async (propertyId, tokenizationDetails) => {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE}/api/properties/${propertyId}/tokenize`, {
-    method: 'POST',
+export const tokenizeProperty = async (propertyId, formData) => {
+  console.log("ENV CHECK:", BUYER1_ACCOUNT_ID, BUYER1_PRIVATE_KEY);
+  const response = await fetch(`${import.meta.env.VITE_API_BASE}/api/properties/${propertyId}/treasury`, {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify(tokenizationDetails)
+    body: JSON.stringify({
+      propertyId, // ✅ backend expects this
+      name: formData.tokenName, // ✅ rename field
+      symbol: formData.tokenSymbol, // ✅ rename field
+      initialSupply: formData.initialSupply,
+      treasuryAccountId: BUYER1_ACCOUNT_ID,
+      treasuryPrivateKey: BUYER1_PRIVATE_KEY,
+    }),
+    
   });
-
+  // log payload
+  
+  console.log(response)
+  
   if (!response.ok) {
-    throw new Error('Failed to tokenize property');
+    const errorData = await response.json().catch(() => ({}));
+    console.error("Tokenization error response:", errorData);
+    throw new Error(errorData.message || "Failed to tokenize property");
   }
+
   return response.json();
 };
-
 export const getPropertyById = async (propertyId) => {
   const response = await fetch(`${import.meta.env.VITE_API_BASE}/api/properties/${propertyId}`);
   

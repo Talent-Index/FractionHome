@@ -10,7 +10,7 @@ import {
   FileText,
   ExternalLink,
 } from "lucide-react";
-import { TokenizeModal } from "./TokenizeModal";
+import TokenizeModal from "./TokenizeModal"; // Change to default import
 import { BuyWidget } from "./BuyWidget";
 import { OwnershipDashboard } from "./OwnershipDashboard";
 import { toast } from "sonner";
@@ -270,10 +270,10 @@ export const PropertyDetail = ({ property, onBack }) => {
       </div>
 
       <TokenizeModal
-        open={showTokenizeModal}
+        property={currentProperty}
+        isOpen={showTokenizeModal}
         onClose={() => setShowTokenizeModal(false)}
         onSuccess={handleTokenizeSuccess}
-        propertyTitle={title}
       />
     </div>
   );
