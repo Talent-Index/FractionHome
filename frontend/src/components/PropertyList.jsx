@@ -12,21 +12,27 @@ export const PropertyList = ({ onPropertyClick, onUploadClick }) => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
- const fetchProperties = async () => {
-  try {
-    const data = await getProperties();
-    console.log("Fetched properties:", data);
-    setProperties(data.items || []); // ✅ Fix here
-  } catch (err) {
-    setError(err.message);
-  } finally {
-    setLoading(false);
-  }
-};
+    const fetchProperties = async () => {
+      try {
+        const data = await getProperties();
+        // Ensure each property has required fields with defaults
+        const processedProperties = (data.items || data || []).map((property) => ({
+          ...property,
+          valuation: property.valuation || 0,
+          totalSupply: property.totalSupply || 0,
+          tokenId: property.tokenId || null,
+          ownedTokens: property.ownedTokens || 0,
+        }));
+        setProperties(processedProperties);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-
-  fetchProperties();
-}, []);
+    fetchProperties();
+  }, []);
 
   if (loading) {
     return (

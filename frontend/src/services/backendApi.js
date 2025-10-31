@@ -81,6 +81,33 @@ export const tokenizeProperty = async (propertyId, formData) => {
 
   return response.json();
 };
+export const getPropertyTokens = async (propertyId) => {
+  const response = await fetch(`${import.meta.env.VITE_API_BASE}/api/properties/${propertyId}/tokens`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch token information");
+  }
+
+  const json = await response.json();
+  const chainInfo = json.data?.chainInfo;
+
+  // 🧩 Normalize totalSupply
+  const totalSupply =
+    typeof chainInfo?.totalSupply === "object"
+      ? chainInfo.totalSupply.low || 0
+      : chainInfo?.totalSupply || 0;
+
+  return {
+    ...json,
+    data: {
+      ...json.data,
+      chainInfo: {
+        ...chainInfo,
+        totalSupply, // now just a number
+      },
+    },
+  };
+};
+
 export const getPropertyById = async (propertyId) => {
   const response = await fetch(`${import.meta.env.VITE_API_BASE}/api/properties/${propertyId}`);
   
@@ -94,10 +121,16 @@ export const getPropertyById = async (propertyId) => {
   }
   
   const data = await response.json();
-  // Return the nested property object from the response
-  if (!data.ok || !data.property) {
-    throw new Error('Property not found');
-  }
   
-  return data.property;
+  // Return data.property if it exists, otherwise return data
+  const property = data.property || data;
+  
+  // Ensure required fields have default values
+  return {
+    ...property,
+    valuation: property.valuation || 0,
+    totalSupply: property.totalSupply || 0,
+    tokenId: property.tokenId || null,
+    ownedTokens: property.ownedTokens || 0
+  };
 };

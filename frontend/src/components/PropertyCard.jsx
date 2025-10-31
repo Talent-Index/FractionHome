@@ -9,7 +9,10 @@ export const PropertyCard = ({ property }) => {
     navigate(`/property/${property.id}`);
   };
 
-  const pricePerToken = property.valuation / property.totalSupply;
+  // Add default values to prevent NaN
+  const valuation = property.valuation || 0;
+  const totalSupply = property.totalSupply || 1; // prevent divide by zero
+  const pricePerToken = totalSupply > 0 ? valuation / totalSupply : 0;
 
   return (
     <Card
@@ -46,7 +49,7 @@ export const PropertyCard = ({ property }) => {
               Price per Token
             </div>
             <div className="font-semibold text-foreground">
-              ${pricePerToken.toFixed(2)}
+              {pricePerToken > 0 ? `$${pricePerToken.toFixed(2)}` : "N/A"}
             </div>
           </div>
         </div>

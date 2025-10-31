@@ -15,18 +15,49 @@ import { BuyWidget } from "./BuyWidget";
 import { OwnershipDashboard } from "./OwnershipDashboard";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import { getPropertyTokens } from "@/services/backendApi";
 
-export const PropertyDetail = ({ property, onBack }) => {
-  const [currentProperty, setCurrentProperty] = useState(property || null);
+export const PropertyDetail = ({ property }) => {
+  const [currentProperty, setCurrentProperty] = useState(null);
   const [showTokenizeModal, setShowTokenizeModal] = useState(false);
   const navigate = useNavigate();
 
   // ✅ Keep local state synced with prop
   useEffect(() => {
     if (property) {
-      setCurrentProperty(property);
+      // Ensure all required fields exist with defaults
+      const processedProperty = {
+        ...property,
+        valuation: property.valuation || 0,
+        totalSupply: property.totalSupply || 0,
+        tokenId: property.tokenId || null,
+        ownedTokens: property.ownedTokens || 0
+      };
+      console.log('Processed property:', processedProperty); // Debug log
+      setCurrentProperty(processedProperty);
     }
   }, [property]);
+  useEffect(() => {
+  const fetchTokenData = async () => {
+    if (!currentProperty?.tokenId) return;
+
+    try {
+      const tokenResponse = await getPropertyTokens(currentProperty.id);
+      const chainInfo = tokenResponse?.data?.chainInfo;
+
+      if (chainInfo?.totalSupply) {
+        setCurrentProperty((prev) => ({
+          ...prev,
+          totalSupply: chainInfo.totalSupply, // already normalized to number
+        }));
+      }
+    } catch (err) {
+      console.error("Failed to fetch token data:", err);
+    }
+  };
+
+  fetchTokenData();
+}, [currentProperty]);
 
   // ✅ Handle successful tokenization
   const handleTokenizeSuccess = (txId, eventId, tokenId) => {
@@ -85,14 +116,20 @@ export const PropertyDetail = ({ property, onBack }) => {
     toast.success(`Purchased ${amount} tokens successfully!`);
   };
 
-  // ✅ Handle missing property
+  // Add error boundary
   if (!currentProperty) {
+    console.log('No property data available'); // Debug log
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Property not found</p>
+      <div className="text-center p-4">
+        <p className="text-muted-foreground">Property data not available</p>
       </div>
     );
   }
+
+  // Calculate price with safety checks
+  const pricePerToken = currentProperty.totalSupply > 0 
+    ? currentProperty.valuation / currentProperty.totalSupply 
+    : 0;
 
   const {
     title,
@@ -107,8 +144,6 @@ export const PropertyDetail = ({ property, onBack }) => {
     tokenId,
     hcsEventId,
   } = currentProperty;
-
-  const pricePerToken = valuation / totalSupply;
 
   return (
     <div className="min-h-screen bg-background">
