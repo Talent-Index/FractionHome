@@ -18,7 +18,7 @@ export const PropertyCard = ({ property }) => {
     >
       <div className="aspect-[4/3] overflow-hidden bg-muted">
         <img
-          src={property.imageUrl}
+          src={property.photos?.[0] || '/placeholder-image.png'}
           alt={property.title}
           className="w-full h-full object-cover transition-smooth hover:scale-105"
         />
