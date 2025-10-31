@@ -86,6 +86,25 @@ export const PropertyDetail = ({ property }) => {
 
     setCurrentProperty(updated);
     toast.success("Property tokenized successfully!");
+
+    setTimeout(() => {
+    getPropertyTokens(currentProperty.id)
+      .then((tokenResponse) => {
+        const chainInfo = tokenResponse?.data?.chainInfo;
+        if (chainInfo?.totalSupply) {
+          setCurrentProperty((prev) => ({
+            ...prev,
+            totalSupply: chainInfo.totalSupply,
+          }));
+
+          // Optional: persist update locally
+          updateProperty(currentProperty.id, {
+            totalSupply: chainInfo.totalSupply,
+          });
+        }
+      })
+      .catch((err) => console.error("Failed to refresh token data:", err));
+  }, 2000); // wait 2 seconds for backend to update
   };
 
   // ✅ Handle purchase
