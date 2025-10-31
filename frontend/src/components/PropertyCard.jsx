@@ -44,14 +44,7 @@ export const PropertyCard = ({ property }) => {
               <span>{property.valuation.toLocaleString()}</span>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-xs text-muted-foreground mb-1">
-              Price per Token
-            </div>
-            <div className="font-semibold text-foreground">
-              {pricePerToken > 0 ? `$${pricePerToken.toFixed(2)}` : "N/A"}
-            </div>
-          </div>
+        
         </div>
         {property.tokenId && (
           <div className="mt-3 pt-3 border-t border-border">
