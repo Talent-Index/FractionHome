@@ -10,48 +10,54 @@ import { buyTokens } from "@/services/backendApi";
 export const BuyWidget = ({ property, onPurchase }) => {
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
-
-  const pricePerToken = property.valuation / property.totalSupply;
-  const totalCost = parseFloat(amount) * pricePerToken;
-  const ownedTokens = property.ownedTokens || 0;
-  const availableTokens = property.totalSupply - ownedTokens;
+ 
 
   const handlePurchase = async () => {
     const tokenAmount = parseInt(amount);
-
+    
     if (!tokenAmount || tokenAmount <= 0) {
       toast.error("Please enter a valid amount");
       return;
     }
 
-    if (tokenAmount > availableTokens) {
-      toast.error(`Only ${availableTokens} tokens available`);
+    if (!property.tokenId) {
+      toast.error("Property not tokenized");
       return;
     }
 
     setLoading(true);
-
     try {
-      // Call backend API - ensure frontend/src/services/backendApi.js exports buyTokens(propertyId, body)
-      const resp = await buyTokens(property.id || property._id || property.tokenId, {
-        amount: tokenAmount
+      console.log('Starting purchase with:', {
+        propertyId: property.id,
+        amount: tokenAmount,
+        tokenId: property.tokenId
       });
 
-      // Backend should return transaction identifiers and/or updated state.
-      // Try common fields, fallback to generated placeholders if missing.
-      const txId = resp?.txId || resp?.transactionId || resp?.transaction?.id || `0.0.${Math.floor(Math.random() * 1000000)}@${Date.now()}`;
-      const eventId = resp?.eventId || resp?.event?.id || `evt-${Date.now()}-${Math.floor(Math.random() * 1000000)}`;
+      const result = await buyTokens(property.id, {
+      amount: tokenAmount,
+      property: property  // Add this line
+      });
 
-      // Notify parent to update UI (component expects onPurchase(tokenAmount, txId, eventId))
-      onPurchase(tokenAmount, txId, eventId);
+      console.log('Purchase result:', result);
       toast.success(`Successfully purchased ${tokenAmount} tokens!`);
+      
+      if (onPurchase) {
+        onPurchase(tokenAmount, result.tx?.transactionId, result.tx?.nodeId);
+      }
       setAmount("");
+      
     } catch (error) {
-      toast.error(error?.message || "Purchase failed");
+      console.error('Purchase failed:', error);
+      toast.error(error.message || "Failed to purchase tokens");
     } finally {
       setLoading(false);
     }
   };
+
+  const pricePerToken = property.valuation / property.totalSupply;
+  const totalCost = parseFloat(amount) * pricePerToken;
+  const ownedTokens = property.ownedTokens || 0;
+  const availableTokens = property.totalSupply - ownedTokens;
 
   return (
     <Card className="p-6 shadow-card">

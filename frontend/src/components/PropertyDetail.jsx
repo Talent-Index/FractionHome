@@ -178,7 +178,7 @@ export const PropertyDetail = ({ property }) => {
             <Card className="overflow-hidden shadow-card animate-fade-in">
               <div className="aspect-video overflow-hidden bg-muted">
                 <img
-                  src={imageUrl}
+                  src={property.photos?.[0] || '/placeholder-image.png'}
                   alt={title}
                   className="w-full h-full object-cover"
                 />

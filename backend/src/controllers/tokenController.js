@@ -118,12 +118,51 @@ async function transferToken(req, res) {
     try {
         const propertyId = req.params.id;
         const { toAccountId, amount, memo, treasuryAccountId, treasuryPrivateKey } = req.body;
-        console.log('transferToken called with', { propertyId, toAccountId, amount, memo });
-        if (!propertyId || !toAccountId || amount == null) return responseUtil.errorResponse(res, 'property id, toAccountId and amount are required', 400);
 
-        const tx = await tokenService.transfer(propertyId, toAccountId, amount, { treasuryAccountId, treasuryPrivateKey, memo });
+        console.log('transferToken called. params:', { propertyId });
+        console.log('transferToken body:', { toAccountId, amount, memo, treasuryAccountId, hasTreasuryPrivateKey: !!treasuryPrivateKey });
 
-        return responseUtil.successResponse(res, { propertyId, toAccountId, amount, tx, message: 'Transfer submitted' });
+        if (!propertyId || !toAccountId || amount == null) {
+            return responseUtil.errorResponse(res, 'Missing required fields: propertyId, toAccountId, and amount are required', 400);
+        }
+
+        if (!treasuryAccountId || !treasuryPrivateKey) {
+            return responseUtil.errorResponse(res, 'Treasury account credentials are required', 400);
+        }
+
+        // verify tokenized property
+        const property = await tokenService.getTokenInfo(propertyId);
+        if (!property || !property.tokenId) {
+            return responseUtil.errorResponse(res, 'Property not found or not tokenized', 404);
+        }
+
+        try {
+            const tx = await tokenService.transfer(propertyId, toAccountId, Number(amount), {
+                treasuryAccountId,
+                treasuryPrivateKey: String(treasuryPrivateKey), // ensure string
+                memo
+            });
+
+            console.log('Transfer successful:', { transactionId: tx?.transactionId, propertyId, amount });
+            return responseUtil.successResponse(res, {
+                propertyId,
+                toAccountId,
+                amount,
+                tx,
+                message: 'Token transfer successful'
+            });
+        } catch (serviceErr) {
+            // Log full Hedera error object for debugging
+            logger.error('tokenService.transfer failed', { message: serviceErr?.message, stack: serviceErr?.stack, original: serviceErr });
+            // return the detailed error back to client (safe for dev; remove sensitive details in prod)
+            const formatted = errorUtil.format(serviceErr);
+            return responseUtil.errorResponse(
+                res,
+                formatted.message || 'Token transfer failed',
+                formatted.status || 500,
+                { ...formatted, originalError: serviceErr }
+            );
+        }
     } catch (err) {
         logger.error('transferToken error', err);
         const formatted = errorUtil.format(err);

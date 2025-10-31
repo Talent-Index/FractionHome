@@ -2,6 +2,9 @@ import { apiFetch } from '../config/api';
 
 const BUYER1_ACCOUNT_ID = import.meta.env.VITE_BUYER1_ACCOUNT_ID;
 const BUYER1_PRIVATE_KEY = import.meta.env.VITE_BUYER1_PRIVATE_KEY;
+// Add these environment variables
+const BUYER2_ACCOUNT_ID = import.meta.env.VITE_BUYER2_ACCOUNT_ID;
+const BUYER2_PRIVATE_KEY = import.meta.env.VITE_BUYER2_PRIVATE_KEY;
 console.log("ENV CHECK:", BUYER1_ACCOUNT_ID, BUYER1_PRIVATE_KEY);
 
 // Properties
@@ -37,12 +40,58 @@ export const getProperty = async (id) => {
 };
 
 // Purchase
-export const buyTokens = (propertyId, body) =>
-  apiFetch(`/api/properties/${propertyId}/buy`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body)
-  });
+export const buyTokens = async (propertyId, { amount, property }) => {
+  try {
+    console.log('Initiating token purchase:', {
+      propertyId,
+      amount,
+      toAccountId: BUYER2_ACCOUNT_ID,
+      treasuryAccountId: property.treasuryId
+    });
+
+    const resp = await fetch(`${import.meta.env.VITE_API_BASE}/api/properties/${propertyId}/token/transfer`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        toAccountId: BUYER2_ACCOUNT_ID,
+        amount: Number(amount),
+        treasuryAccountId: property.treasuryId,
+        treasuryPrivateKey: property.treasuryKey,
+        memo: `Token purchase - Property ${propertyId}`
+      })
+    });
+
+    // Attempt to parse JSON, fallback to text
+    let data;
+    try {
+      data = await resp.json();
+    } catch (err) {
+      const text = await resp.text().catch(() => '');
+      data = { message: text || 'No response body' };
+    }
+
+    if (!resp.ok) {
+      // Build a useful error message
+      const serverError = data.error || data;
+      const detail =
+        serverError?.message && typeof serverError.message === 'object'
+          ? JSON.stringify(serverError.message)
+          : serverError?.message || JSON.stringify(serverError);
+      
+      console.error('Server error response:', serverError);
+      throw new Error(detail || `Failed to purchase tokens (status ${resp.status})`);
+    }
+
+    return data;
+  } catch (error) {
+    // Preserve useful info for debugging
+    console.error('Token purchase error details:', {
+      message: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+};
 
 // Holders / mirror-node-backed endpoints
 export const getTokenHolders = (tokenId, useCache = true) =>
