@@ -5,7 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { tokenizeProperty } from '@/services/backendApi';
+import { tokenizeProperty } from '@/services/backendApi'; 
+import { useNavigate } from "react-router-dom"
 
 export const TokenizeModal = ({ property, isOpen, onClose, onSuccess }) => {
   const [loading, setLoading] = useState(false);
@@ -15,6 +16,12 @@ export const TokenizeModal = ({ property, isOpen, onClose, onSuccess }) => {
     initialSupply: '',
     treasuryAccountId: '',
   });
+
+  const refreshPage = () => {
+    window.location.reload(true)
+  };
+
+  const navigate = useNavigate();
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -38,6 +45,10 @@ export const TokenizeModal = ({ property, isOpen, onClose, onSuccess }) => {
       toast.success('Property successfully tokenized!');
       onSuccess?.(result);
       onClose();
+      refreshPage();
+      // navigate to the particular property
+      navigate(`/properties/${property.id}`);
+
     } catch (error) {
       console.error('Tokenization error:', error);
       toast.error(error.message || 'Failed to tokenize property');

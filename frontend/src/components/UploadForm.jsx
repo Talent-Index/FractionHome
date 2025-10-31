@@ -4,23 +4,27 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom"; // Import useNavigate
 
-// Base API URL from environment
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3000';
 
-export const UploadForm = ({ onBack, onSuccess }) => {
+export const UploadForm = ({ onBack }) => {
   const [loading, setLoading] = useState(false);
   const [imagePreview, setImagePreview] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
-  const [propertyId, setPropertyId] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
     address: "",
     valuation: "",
     description: "",
   });
+
+  const navigate = useNavigate(); // Initialize useNavigate
+  const refreshPage = () => {
+    window.location.reload(true)
+  };
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -99,7 +103,6 @@ export const UploadForm = ({ onBack, onSuccess }) => {
     try {
       // Step 1: Upload property details
       const newPropertyId = await uploadPropertyDetails();
-      setPropertyId(newPropertyId);
 
       // Step 2: Upload image if selected
       if (selectedFile) {
@@ -107,7 +110,8 @@ export const UploadForm = ({ onBack, onSuccess }) => {
       }
 
       toast.success("Property created successfully!");
-      onSuccess?.();
+      refreshPage();
+      // navigate(`/properties/${newPropertyId}`); // Navigate to the new property's detail page
     } catch (error) {
       toast.error(error.message || "Failed to create property");
     } finally {
