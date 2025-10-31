@@ -86,7 +86,7 @@ const Index = () => {
 
   return (
     <div className="min-h-screen">
-      <DemoModeBanner />
+      
 
       {view === "list" && (
         <PropertyList
