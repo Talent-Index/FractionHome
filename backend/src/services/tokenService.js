@@ -1,353 +1,410 @@
-import HederaClient from '../config/hederaClient.js';
+// services/avalancheTokenService.js
+import fs from 'fs';
+import path from 'path';
+import { ethers } from 'ethers';
 import logger from '../config/logger.js';
 import PropertyModel from '../models/propertyModel.js';
 
-import {
-    TokenCreateTransaction,
-    TokenInfoQuery,
-    TokenMintTransaction,
-    TokenBurnTransaction,
-    TransferTransaction,
-    TokenId,
-    AccountId,
-    PrivateKey,
-} from '@hashgraph/sdk';
-
-// Optional: keep global fallback (remove if you always require explicit treasury)
-const GLOBAL_TREASURY_ACCOUNT_ID = process.env.TREASURY_ACCOUNT_ID || null;
-const GLOBAL_TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY
-    ? PrivateKey.fromString(process.env.TREASURY_PRIVATE_KEY)
-    : null;
-
-const hederaClient = new HederaClient();
 const propertyModel = new PropertyModel();
 
-function _requireClient() {
-    if (!hederaClient) throw new Error('Hedera client not configured');
-    const client = hederaClient.getClient();
-    if (!client) throw new Error('Hedera SDK client not initialized properly');
-    return client;
+// ---------- Configuration ----------
+const AVALANCHE_RPC = process.env.AVALANCHE_RPC || 'https://api.avax.network/ext/bc/C/rpc';
+const OPERATOR_PRIVATE_KEY = process.env.AVAX_OPERATOR_KEY;
+if (!OPERATOR_PRIVATE_KEY) {
+  logger.warn('AVAX_OPERATOR_KEY not set - deploy/mint operations will fail without an operator private key.');
+}
+
+const GLOBAL_TREASURY_ADDRESS = process.env.TREASURY_ADDRESS || null;
+const GLOBAL_TREASURY_PRIVATE_KEY = process.env.TREASURY_PRIVATE_KEY || null;
+
+// Compiled contract artifact (assumes Hardhat / Truffle output)
+const CONTRACT_ARTIFACT_PATH = path.join(process.cwd(), 'artifacts', 'contracts', 'PropertyToken.sol', 'PropertyToken.json');
+if (!fs.existsSync(CONTRACT_ARTIFACT_PATH)) {
+  logger.error(`Contract artifact not found at ${CONTRACT_ARTIFACT_PATH}. Compile your contract first.`);
+}
+const contractJson = fs.existsSync(CONTRACT_ARTIFACT_PATH) ? JSON.parse(fs.readFileSync(CONTRACT_ARTIFACT_PATH, 'utf8')) : null;
+const ABI = contractJson ? contractJson.abi : null;
+const BYTECODE = contractJson ? contractJson.bytecode : null;
+
+// ---------- Provider + Operator ----------
+const provider = new ethers.JsonRpcProvider(AVALANCHE_RPC);
+const operatorWallet = OPERATOR_PRIVATE_KEY ? new ethers.Wallet(OPERATOR_PRIVATE_KEY, provider) : null;
+
+// ---------- Helpers ----------
+function _requireProvider() {
+  if (!provider) throw new Error('Avalanche provider not configured');
+  return provider;
+}
+
+function _requireAbiBytecode() {
+  if (!ABI || !BYTECODE) {
+    throw new Error(`Contract ABI/bytecode not available. Expected artifact at: ${CONTRACT_ARTIFACT_PATH}`);
+  }
+  return { ABI, BYTECODE };
 }
 
 /**
- * Resolve treasury account and key.
- * Priority: explicit params > global env (if enabled).
- * Throws if insufficient info.
+ * Resolve a treasury address + private key.
+ * Priority: explicit args > global env. Throws if address missing.
+ * Returns { address: '0x...', privateKey: '0x...' | null }
  */
-function _resolveTreasury(treasuryAccountId, treasuryPrivateKey, operationName) {
-    let acct = treasuryAccountId;
-    let key = treasuryPrivateKey;
+function _resolveTreasury(treasuryAddress, treasuryPrivateKey, operationName) {
+  let addr = treasuryAddress || null;
+  let pk = treasuryPrivateKey || null;
 
-    // If not provided explicitly, fall back to global (optional — remove if strict mode desired)
-    if (!acct && GLOBAL_TREASURY_ACCOUNT_ID) {
-        acct = GLOBAL_TREASURY_ACCOUNT_ID;
-        key = key || GLOBAL_TREASURY_PRIVATE_KEY;
-    }
+  if (!addr && GLOBAL_TREASURY_ADDRESS) {
+    addr = GLOBAL_TREASURY_ADDRESS;
+    pk = pk || GLOBAL_TREASURY_PRIVATE_KEY;
+  }
 
-    if (!acct) {
-        throw new Error(
-            `Treasury account ID required for ${operationName}. Provide treasuryAccountId explicitly or set TREASURY_ACCOUNT_ID.`
-        );
-    }
+  if (!addr) {
+    throw new Error(`Treasury address required for ${operationName}. Provide treasuryAddress explicitly or set TREASURY_ADDRESS.`);
+  }
 
-    // Parse account ID if string
-    if (typeof acct === 'string') {
-        acct = AccountId.fromString(acct);
-    }
+  // normalize to checksum address if possible
+  try {
+    addr = ethers.getAddress(addr);
+  } catch (err) {
+    // allow non-checksummed but try to keep it consistent
+    logger.warn(`Invalid or non-checksummed address provided for ${operationName}: ${addr}`);
+  }
 
-    // Parse private key if string
-    if (typeof key === 'string') {
-        key = PrivateKey.fromString(key);
-    }
-
-    return { treasuryAccountId: acct, treasuryPrivateKey: key };
+  return { treasuryAddress: addr, treasuryPrivateKey: pk ?? null };
 }
 
-// ───────────────────────────────────────────────────────────────
-// Public Service Methods
-// ───────────────────────────────────────────────────────────────
+// ---------- Public service methods (same exported names) ----------
 
 /**
- * Create an HTS token.
- * If the property already has treasuryId and treasuryKey, the property is considered tokenized.
- * This function will:
- *  - check the property record by propertyId
- *  - if already tokenized, return early indicating so
- *  - otherwise create the token and update the property record with treasury / token details
+ * Create an ERC-20 token for a property and assign initial supply to a newly generated or resolved treasury.
  *
- * @param {Object} payload
- * @param {string} payload.propertyId
- * @param {string} payload.name
- * @param {string} payload.symbol
- * @param {number} payload.initialSupply
- * @param {number} [payload.decimals=0]
- * @param {string|AccountId} [payload.treasuryAccountId] - Optional if global env set
- * @param {string|PrivateKey} [payload.treasuryPrivateKey]
+ * payload:
+ *   - propertyId
+ *   - name
+ *   - symbol
+ *   - initialSupply (number or string)
+ *   - decimals (default 0)
+ *   - treasuryAddress (optional)
+ *   - treasuryPrivateKey (optional)
  */
 async function createToken(payload = {}) {
-    const client = _requireClient();
+  const provider = _requireProvider();
+  const { ABI, BYTECODE } = _requireAbiBytecode();
 
-    const {
-        propertyId,
-        name,
-        symbol,
-        initialSupply,
-        decimals = 0,
-        treasuryAccountId,
-        treasuryPrivateKey,
-    } = payload;
+  const {
+    propertyId,
+    name,
+    symbol,
+    initialSupply,
+    decimals = 0,
+    treasuryAddress,
+    treasuryPrivateKey
+  } = payload;
 
-    if (!propertyId || !name || !symbol || initialSupply == null) {
-        throw new Error('Missing required fields: propertyId, name, symbol, initialSupply');
-    }
+  if (!propertyId || !name || !symbol || initialSupply == null) {
+    throw new Error('Missing required fields: propertyId, name, symbol, initialSupply');
+  }
 
-    // Ensure property exists
-    const property = propertyModel.getPropertyById(propertyId);
-    if (!property) {
-        throw new Error(`Property not found: ${propertyId}`);
-    }
+  // ensure property exists
+  const property = await propertyModel.getPropertyById(propertyId);
+  if (!property) throw new Error(`Property not found: ${propertyId}`);
 
-    // If property already has treasuryId and treasuryKey, treat as already tokenized
-    if (property.treasuryId && property.treasuryKey) {
-        logger.info(`Property ${propertyId} already tokenized: treasury=${property.treasuryId}, tokenId=${property.tokenId || 'N/A'}`);
-        return {
-            alreadyTokenized: true,
-            property,
-        };
-    }
+  // If already tokenized (we treat presence of treasuryId & tokenId as tokenized)
+  if (property.treasuryId && property.tokenId) {
+    logger.info(`Property ${propertyId} already tokenized: treasury=${property.treasuryId}, token=${property.tokenId}`);
+    return { alreadyTokenized: true, property };
+  }
 
-    const { treasuryAccountId: resolvedAcct, treasuryPrivateKey: resolvedKey } = _resolveTreasury(
-        treasuryAccountId,
-        treasuryPrivateKey,
-        'token creation'
-    );
+  // Resolve (or generate) treasury wallet
+  let resolved = null;
+  if (treasuryAddress || treasuryPrivateKey) {
+    resolved = _resolveTreasury(treasuryAddress, treasuryPrivateKey, 'token creation');
+  } else if (property.treasuryId && property.treasuryKey) {
+    resolved = _resolveTreasury(property.treasuryId, property.treasuryKey, 'token creation');
+  } else if (GLOBAL_TREASURY_ADDRESS) {
+    resolved = _resolveTreasury(null, null, 'token creation'); // will use global
+  } else {
+    // generate a new wallet for the property treasury
+    const newWallet = ethers.Wallet.createRandom();
+    resolved = { treasuryAddress: newWallet.address, treasuryPrivateKey: newWallet.privateKey };
+  }
 
-    try {
-        const tx = new TokenCreateTransaction()
-            .setTokenName(name)
-            .setTokenSymbol(symbol)
-            .setDecimals(decimals)
-            .setInitialSupply(initialSupply)
-            .setTreasuryAccountId(resolvedAcct)
-            .freezeWith(client);
+  const treasuryAddr = resolved.treasuryAddress;
+  const treasuryKey = resolved.treasuryPrivateKey; // may be null if fallback global isn't set with key
 
-        if (resolvedKey) {
-            tx.sign(resolvedKey);
-        }
+  // Operator wallet must exist to deploy (pay gas)
+  if (!operatorWallet) {
+    throw new Error('Operator wallet not configured. Set AVAX_OPERATOR_KEY to deploy contracts.');
+  }
 
-        const response = await tx.execute(client);
-        const receipt = await response.getReceipt(client);
-        const tokenId = receipt.tokenId?.toString() || null;
-        const status = receipt.status?.toString() || null;
+  try {
+    // Deploy contract with operator as deployer (operator will pay gas)
+    const factory = new ethers.ContractFactory(ABI, BYTECODE, operatorWallet);
 
-        logger.info(`Token created: tokenId=${tokenId}, status=${status}, treasury=${resolvedAcct.toString()}`);
+    // Convert initialSupply to BigInt using decimals (assuming decimals param)
+    // For decimals = 0 we use integer amounts. For general case:
+    const multiplier = ethers.BigInt(10) ** ethers.BigInt(Number(decimals));
+    const initialSupplyBN = ethers.BigInt(String(initialSupply)) * multiplier;
 
-        // Update property record with treasury & token info
-        const updates = {
-            treasuryId: resolvedAcct.toString(),
-            // write treasuryKey if we have it (string form), otherwise null
-            treasuryKey: resolvedKey ? resolvedKey.toString() : null,
-            tokenId,
-            tokenInitialSupply: initialSupply,
-            tokenCreatedAt: new Date().toISOString(),
-        };
+    logger.info(`Deploying ERC-20 token ${name}(${symbol}) supply=${initialSupply} decimals=${decimals} treasury=${treasuryAddr}`);
 
-        const updatedProperty = propertyModel.updateProperty(propertyId, updates);
+    // Assumes constructor: (string name, string symbol, uint256 initialSupply, address treasury) — adjust as per your contract
+    const contract = await factory.deploy(name, symbol, initialSupplyBN.toString(), treasuryAddr);
+    // wait for deployment
+    await contract.waitForDeployment ? await contract.waitForDeployment() : await contract.deployed();
 
-        return {
-            tokenId,
-            totalSupply: initialSupply,
-            treasury: resolvedAcct.toString(),
-            metadata: { propertyId, name, symbol, decimals },
-            receipt: { status },
-            property: updatedProperty,
-        };
-    } catch (err) {
-        logger.error('createToken error:', err);
-        throw err;
-    }
+    const tokenAddress = contract.target || contract.address; // ethers v6 uses .target; v5 uses .address
+    logger.info(`Token deployed at ${tokenAddress}`);
+
+    // Update property record
+    const updates = {
+      treasuryId: treasuryAddr,
+      treasuryKey: treasuryKey || null,
+      tokenId: tokenAddress,
+      tokenInitialSupply: Number(initialSupply),
+      tokenCreatedAt: new Date().toISOString(),
+    };
+
+    const updatedProperty = await propertyModel.updateProperty(propertyId, updates);
+
+    return {
+      tokenId: tokenAddress,
+      totalSupply: Number(initialSupply),
+      treasury: treasuryAddr,
+      metadata: { propertyId, name, symbol, decimals },
+      receipt: { deployed: true },
+      property: updatedProperty || { ...property, ...updates },
+    };
+  } catch (err) {
+    logger.error('createToken error:', err);
+    throw err;
+  }
 }
 
 /**
- * Get token info from Hedera.
+ * Get token info from the deployed ERC-20 contract
+ * Returns an object with name, symbol, decimals, totalSupply etc.
  */
 async function getTokenInfo(propertyId) {
-    if (!propertyId) throw new Error('propertyId is required');
-    // Resolve property and tokenId from propertyModel
-    const property = propertyModel.getPropertyById(propertyId);
-    if (!property) throw new Error(`Property not found: ${propertyId}`);
-    if (!property.tokenId) throw new Error(`Property ${propertyId} is not tokenized (missing tokenId)`);
+  if (!propertyId) throw new Error('propertyId is required');
 
-    const client = _requireClient();
-    try {
-        const query = new TokenInfoQuery().setTokenId(TokenId.fromString(property.tokenId));
-        const info = await query.execute(client);
-        return info;
-    } catch (err) {
-        logger.error('getTokenInfo error:', err);
-        throw err;
+  const property = await propertyModel.getPropertyById(propertyId);
+  if (!property) throw new Error(`Property not found: ${propertyId}`);
+  if (!property.tokenId) throw new Error(`Property ${propertyId} is not tokenized (missing tokenId)`);
+
+  const provider = _requireProvider();
+  const { ABI } = _requireAbiBytecode();
+
+  try {
+    const tokenAddr = property.tokenId;
+    const contract = new ethers.Contract(tokenAddr, ABI, provider);
+
+    // call common ERC-20 methods (some contracts may differ)
+    const name = await contract.name().catch(() => null);
+    const symbol = await contract.symbol().catch(() => null);
+    const decimals = await contract.decimals().catch(() => null);
+    const totalSupplyRaw = await contract.totalSupply().catch(() => null);
+
+    // Normalize totalSupply based on decimals (if decimals available)
+    let totalSupply = null;
+    if (totalSupplyRaw != null && decimals != null) {
+      const parsed = BigInt(totalSupplyRaw.toString());
+      const factor = BigInt(10) ** BigInt(Number(decimals));
+      totalSupply = Number(parsed / factor); // note: may truncate fractional parts
+    } else if (totalSupplyRaw != null) {
+      totalSupply = Number(BigInt(totalSupplyRaw.toString()));
     }
+
+    return { name, symbol, decimals: decimals != null ? Number(decimals) : null, totalSupply, raw: { totalSupplyRaw: totalSupplyRaw?.toString?.() } };
+  } catch (err) {
+    logger.error('getTokenInfo error:', err);
+    throw err;
+  }
 }
 
 /**
- * Mint tokens.
- * @param {string} tokenId
- * @param {number} amount
- * @param {Object} opts
- * @param {string|AccountId} opts.treasuryAccountId - Required
- * @param {string|PrivateKey} [opts.treasuryPrivateKey]
+ * Mint tokens to the property's treasury (or specified treasury).
+ * Requires the deployed contract to expose a `mint(address,uint256)` method and that the signer has permission.
+ *
+ * @param propertyId
+ * @param amount (number|string)
+ * @param opts: { treasuryAddress, treasuryPrivateKey }  // treasury used as recipient of minted tokens, but mint call typically done by operator/owner
  */
 async function mint(propertyId, amount, opts = {}) {
-    const client = _requireClient();
-    if (!propertyId) throw new Error('propertyId is required');
-    if (amount == null) throw new Error('amount is required');
+  if (!propertyId) throw new Error('propertyId is required');
+  if (amount == null) throw new Error('amount is required');
 
-    // Resolve property -> tokenId and default treasury from property if not provided
-    const property = propertyModel.getPropertyById(propertyId);
-    if (!property) throw new Error(`Property not found: ${propertyId}`);
-    if (!property.tokenId) throw new Error(`Property ${propertyId} is not tokenized (missing tokenId)`);
+  const property = await propertyModel.getPropertyById(propertyId);
+  if (!property) throw new Error(`Property not found: ${propertyId}`);
+  if (!property.tokenId) throw new Error(`Property ${propertyId} is not tokenized (missing tokenId)`);
 
-    const { treasuryAccountId = property.treasuryId, treasuryPrivateKey = property.treasuryKey } = opts;
-    const { treasuryAccountId: resolvedAcct, treasuryPrivateKey: resolvedKey } = _resolveTreasury(
-        treasuryAccountId,
-        treasuryPrivateKey,
-        'minting'
-    );
+  const { treasuryAddress: optAddr, treasuryPrivateKey: optPk } = opts;
+  const { treasuryAddress: resolvedAddr } = _resolveTreasury(optAddr || property.treasuryId, optPk || property.treasuryKey, 'minting');
 
-    try {
-        const tx = new TokenMintTransaction()
-            .setTokenId(TokenId.fromString(property.tokenId))
-            .setAmount(amount)
-            .freezeWith(client);
+  const { ABI } = _requireAbiBytecode();
+  const tokenAddress = property.tokenId;
 
-        if (resolvedKey) {
-            tx.sign(resolvedKey);
-        }
-
-        const response = await tx.execute(client);
-        const receipt = await response.getReceipt(client);
-        const txId = response.transactionId.toString();
-        const status = receipt.status?.toString() || null;
-
-        logger.info(`Mint: property=${propertyId}, token=${property.tokenId}, amount=${amount}, tx=${txId}, status=${status}`);
-        return { txId, status };
-    } catch (err) {
-        logger.error('mint error:', err);
-        throw err;
+  // The signer that calls mint must be able to mint — often the operator (deployer) or owner.
+  // We'll attempt to use operatorWallet if present; otherwise, try to use treasury key if it has mint role.
+  let signer = operatorWallet;
+  if (!signer) {
+    if (!property.treasuryKey && !optPk) {
+      throw new Error('No operator wallet and no treasury private key available to sign mint transaction.');
     }
+    const pk = optPk || property.treasuryKey;
+    signer = new ethers.Wallet(pk, provider);
+  }
+
+  try {
+    const contract = new ethers.Contract(tokenAddress, ABI, signer);
+
+    // Read decimals to scale amount if necessary; fallback to 0
+    let decimals = 0;
+    try {
+      const d = await contract.decimals();
+      decimals = d != null ? Number(d) : 0;
+    } catch (e) {
+      decimals = 0;
+    }
+
+    const multiplier = ethers.BigInt(10) ** ethers.BigInt(decimals);
+    const amountBN = ethers.BigInt(String(amount)) * multiplier;
+
+    // Assumes contract function mint(address to, uint256 amount)
+    const tx = await contract.mint(resolvedAddr, amountBN.toString());
+    const receipt = await tx.wait();
+
+    logger.info(`Minted ${amount} tokens for property=${propertyId}, token=${tokenAddress}, to=${resolvedAddr}, tx=${receipt.transactionHash}`);
+
+    return { txId: receipt.transactionHash, status: receipt.status === 1 ? 'SUCCESS' : 'FAILED' };
+  } catch (err) {
+    logger.error('mint error:', err);
+    throw err;
+  }
 }
 
 /**
- * Burn tokens by propertyId.
- * @param {string} propertyId
- * @param {number} amount
- * @param {Object} opts
- * @param {string|AccountId} opts.treasuryAccountId - Optional, falls back to property's treasuryId
- * @param {string|PrivateKey} [opts.treasuryPrivateKey] - Optional, falls back to property's treasuryKey
+ * Burn tokens from the treasury (or given account).
+ * Assumes contract exposes burn(uint256) or burnFrom(address,uint256) as appropriate.
+ *
+ * @param propertyId
+ * @param amount
+ * @param opts { treasuryAddress, treasuryPrivateKey }
  */
 async function burn(propertyId, amount, opts = {}) {
-    const client = _requireClient();
-    if (!propertyId) throw new Error('propertyId is required');
-    if (amount == null) throw new Error('amount is required');
+  if (!propertyId) throw new Error('propertyId is required');
+  if (amount == null) throw new Error('amount is required');
 
-    const property = propertyModel.getPropertyById(propertyId);
-    if (!property) throw new Error(`Property not found: ${propertyId}`);
-    if (!property.tokenId) throw new Error(`Property ${propertyId} is not tokenized (missing tokenId)`);
+  const property = await propertyModel.getPropertyById(propertyId);
+  if (!property) throw new Error(`Property not found: ${propertyId}`);
+  if (!property.tokenId) throw new Error(`Property ${propertyId} is not tokenized (missing tokenId)`);
 
-    const { treasuryAccountId = property.treasuryId, treasuryPrivateKey = property.treasuryKey } = opts;
-    const { treasuryAccountId: resolvedAcct, treasuryPrivateKey: resolvedKey } = _resolveTreasury(
-        treasuryAccountId,
-        treasuryPrivateKey,
-        'burning'
-    );
+  const { treasuryAddress: optAddr, treasuryPrivateKey: optPk } = opts;
+  const { treasuryAddress: resolvedAddr, treasuryPrivateKey: resolvedKey } = _resolveTreasury(optAddr || property.treasuryId, optPk || property.treasuryKey, 'burning');
 
+  const { ABI } = _requireAbiBytecode();
+  const tokenAddress = property.tokenId;
+
+  if (!resolvedKey) {
+    throw new Error('Treasury private key required to burn tokens from the treasury (signing required). Provide treasuryPrivateKey or set TREASURY_PRIVATE_KEY.');
+  }
+
+  const signer = new ethers.Wallet(resolvedKey, provider);
+
+  try {
+    const contract = new ethers.Contract(tokenAddress, ABI, signer);
+
+    // Determine decimals
+    let decimals = 0;
     try {
-        const tx = new TokenBurnTransaction()
-            .setTokenId(TokenId.fromString(property.tokenId))
-            .setAmount(amount)
-            .freezeWith(client);
-
-        if (resolvedKey) {
-            tx.sign(resolvedKey);
-        }
-
-        const response = await tx.execute(client);
-        const receipt = await response.getReceipt(client);
-        const txId = response.transactionId.toString();
-        const status = receipt.status?.toString() || null;
-
-        logger.info(`Burn: property=${propertyId}, token=${property.tokenId}, amount=${amount}, tx=${txId}, status=${status}`);
-        return { txId, status };
-    } catch (err) {
-        logger.error('burn error:', err);
-        throw err;
+      const d = await contract.decimals();
+      decimals = d != null ? Number(d) : 0;
+    } catch (e) {
+      decimals = 0;
     }
+
+    const multiplier = ethers.BigInt(10) ** ethers.BigInt(decimals);
+    const amountBN = ethers.BigInt(String(amount)) * multiplier;
+
+    // Prefer burn(uint256) (burns from msg.sender), otherwise try burnFrom(address,uint256)
+    let tx;
+    if (typeof contract.burn === 'function') {
+      tx = await contract.burn(amountBN.toString());
+    } else if (typeof contract.burnFrom === 'function') {
+      // burnFrom requires approval; assumes treasury signs and burns from itself
+      tx = await contract.burnFrom(resolvedAddr, amountBN.toString());
+    } else {
+      throw new Error('Contract does not expose burn() or burnFrom() function. Update contract or service accordingly.');
+    }
+
+    const receipt = await tx.wait();
+    logger.info(`Burned ${amount} tokens for property=${propertyId}, token=${tokenAddress}, tx=${receipt.transactionHash}`);
+
+    return { txId: receipt.transactionHash, status: receipt.status === 1 ? 'SUCCESS' : 'FAILED' };
+  } catch (err) {
+    logger.error('burn error:', err);
+    throw err;
+  }
 }
 
 /**
- * Transfer tokens from property's treasury to another account.
- * @param {string} propertyId
- * @param {string|AccountId} toAccountId
- * @param {number} amount
- * @param {Object} opts
- * @param {string|AccountId} [opts.treasuryAccountId] - Optional, falls back to property's treasuryId
- * @param {string|PrivateKey} [opts.treasuryPrivateKey] - Optional, falls back to property's treasuryKey
- * @param {string} [opts.memo]
+ * Transfer tokens from property's treasury to another address.
+ * @param propertyId
+ * @param toAddress
+ * @param amount
+ * @param opts { treasuryAddress, treasuryPrivateKey, memo }
  */
-async function transfer(propertyId, toAccountId, amount, opts = {}) {
-    const client = _requireClient();
-    if (!propertyId) throw new Error('propertyId is required');
-    if (!toAccountId) throw new Error('toAccountId is required');
-    if (amount == null) throw new Error('amount is required');
+async function transfer(propertyId, toAddress, amount, opts = {}) {
+  if (!propertyId) throw new Error('propertyId is required');
+  if (!toAddress) throw new Error('toAddress is required');
+  if (amount == null) throw new Error('amount is required');
 
-    const property = propertyModel.getPropertyById(propertyId);
-    if (!property) throw new Error(`Property not found: ${propertyId}`);
-    if (!property.tokenId) throw new Error(`Property ${propertyId} is not tokenized (missing tokenId)`);
+  const property = await propertyModel.getPropertyById(propertyId);
+  if (!property) throw new Error(`Property not found: ${propertyId}`);
+  if (!property.tokenId) throw new Error(`Property ${propertyId} is not tokenized (missing tokenId)`);
 
-    const { memo } = opts;
+  const { treasuryAddress: optAddr, treasuryPrivateKey: optPk, memo } = opts;
+  const { treasuryAddress: resolvedAddr, treasuryPrivateKey: resolvedKey } = _resolveTreasury(optAddr || property.treasuryId, optPk || property.treasuryKey, 'transfer');
 
-    // Resolve treasury from opts, property, or global env
-    const { treasuryAccountId: resolvedAcct, treasuryPrivateKey: resolvedKey } = _resolveTreasury(
-        opts.treasuryAccountId || property.treasuryId,
-        opts.treasuryPrivateKey || property.treasuryKey,
-        'transfer'
-    );
+  if (!resolvedKey) {
+    throw new Error('Treasury private key required to sign transfer from the treasury. Provide treasuryPrivateKey or set TREASURY_PRIVATE_KEY.');
+  }
 
+  const { ABI } = _requireAbiBytecode();
+  const tokenAddress = property.tokenId;
+
+  const signer = new ethers.Wallet(resolvedKey, provider);
+
+  try {
+    const contract = new ethers.Contract(tokenAddress, ABI, signer);
+
+    // decimals handling
+    let decimals = 0;
     try {
-        const fromAccount = typeof resolvedAcct === 'string' ? AccountId.fromString(resolvedAcct) : resolvedAcct;
-        const toAccount = typeof toAccountId === 'string' ? AccountId.fromString(toAccountId) : toAccountId;
-
-        let tx = new TransferTransaction()
-            .addTokenTransfer(TokenId.fromString(property.tokenId), fromAccount, -Math.abs(Number(amount)))
-            .addTokenTransfer(TokenId.fromString(property.tokenId), toAccount, Math.abs(Number(amount)));
-
-        if (memo) tx.setTransactionMemo(memo);
-
-        // Must freeze the transaction before signing
-        tx = tx.freezeWith(client);
-
-        if (resolvedKey) {
-            const signingKey = typeof resolvedKey === 'string' ? PrivateKey.fromString(resolvedKey) : resolvedKey;
-            tx.sign(signingKey);
-        }
-
-        const response = await tx.execute(client);
-        const receipt = await response.getReceipt(client);
-        const txId = response.transactionId.toString();
-        const status = receipt.status?.toString() || null;
-
-        logger.info(`Transfer: property=${propertyId}, token=${property.tokenId}, to=${toAccountId}, amount=${amount}, tx=${txId}, status=${status}`);
-        return { txId, status };
-    } catch (err) {
-        logger.error('transfer error:', err);
-        throw err;
+      const d = await contract.decimals();
+      decimals = d != null ? Number(d) : 0;
+    } catch (e) {
+      decimals = 0;
     }
+    const multiplier = ethers.BigInt(10) ** ethers.BigInt(decimals);
+    const amountBN = ethers.BigInt(String(amount)) * multiplier;
+
+    // transfer(to, amount)
+    const tx = await contract.transfer(ethers.getAddress(toAddress), amountBN.toString());
+    const receipt = await tx.wait();
+
+    logger.info(`Transfer: property=${propertyId}, token=${tokenAddress}, to=${toAddress}, amount=${amount}, tx=${receipt.transactionHash}`);
+
+    return { txId: receipt.transactionHash, status: receipt.status === 1 ? 'SUCCESS' : 'FAILED' };
+  } catch (err) {
+    logger.error('transfer error:', err);
+    throw err;
+  }
 }
 
 export default {
-    createToken,
-    getTokenInfo,
-    mint,
-    burn,
-    transfer,
+  createToken,
+  getTokenInfo,
+  mint,
+  burn,
+  transfer,
 };
