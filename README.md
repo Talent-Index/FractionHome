@@ -1,206 +1,130 @@
-<<<<<<< HEAD
 # 🏗️ **FractionHome**
 
-###  **MVP Architecture Overview**
-=======
-# FractionHome
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
+## **MVP Architecture Overview**
 
 ### 🎯 **Goal**
 
-The MVP shows how a property can be:
+The MVP demonstrates how a property can be:
 
 1. Uploaded to the system,
-<<<<<<< HEAD
-2. Tokenized on **Avalanche (C‑Chain, EVM)**,
-=======
 2. Tokenized on **Avalanche C‑Chain (ERC‑20)**,
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
 3. Purchased fractionally by dummy investors, and
-4. Displayed in a dashboard showing ownership distribution —  
-  all **without login or registration**.
+4. Displayed in a dashboard showing ownership distribution — all **without login or registration**.
 
-This is a **proof‑of‑concept** demo focused on the *core blockchain logic*, not user management.
-
----
-
-##  **Roles (All Dummy Accounts)**
-
-<<<<<<< HEAD
-| Role           | Purpose                                   | Represented As                         |
-| -------------- | ----------------------------------------- | -------------------------------------- |
-| **Owner**      | Uploads property & initiates tokenization | Hardcoded dummy Avalanche C‑Chain address |
-| **Investor A** | Buys property tokens                      | Dummy Avalanche C‑Chain address        |
-| **Investor B** | Holds or transfers tokens                 | Dummy Avalanche C‑Chain address        |
-
-All accounts are stored in `.env` with their respective `address` and `private_key` for testnet operations.
-=======
-| Role           | Purpose                                   | Represented As                 |
-| -------------- | ----------------------------------------- | ------------------------------ |
-| **Owner**      | Uploads property & initiates tokenization | Hardcoded dummy Avalanche EVM address |
-| **Investor A** | Buys property tokens                      | Dummy Avalanche EVM address    |
-| **Investor B** | Holds or transfers tokens                 | Dummy Avalanche EVM address    |
-
-All accounts are stored in `.env` with their respective `address` and `private_key` for fuji/testnet operations.
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
+This is a **proof‑of‑concept** focused purely on *core blockchain logic*, not user management.
 
 ---
 
-## **System Workflow**
+## 👥 **Roles (All Dummy Accounts)**
+
+| Role           | Purpose                                   | Represented As                  |
+| -------------- | ----------------------------------------- | ------------------------------- |
+| **Owner**      | Uploads property & initiates tokenization | Hardcoded Avalanche EVM address |
+| **Investor A** | Buys property tokens                      | Dummy Avalanche EVM address     |
+| **Investor B** | Holds or transfers tokens                 | Dummy Avalanche EVM address     |
+
+All accounts are stored in `.env` with their respective `address` and `private_key` for Fuji testnet operations.
+
+---
+
+## ⚙️ **System Workflow**
 
 ### **Step 1: Property Upload**
 
-* The **Owner** fills a simple form:
-  → property name, location, price, and image.
-<<<<<<< HEAD
-* The image is uploaded to **IPFS (or a file service)**.
-=======
-* The image is uploaded to **IPFS (or other off‑chain storage)**.
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
+* The **Owner** fills in a simple form: property name, location, price, and image.
+* Image uploads to **IPFS (or other off‑chain storage)**.
 * Metadata is stored locally (JSON or SQLite).
 
-*Result:* Property added to system, ready for tokenization.
+**Result:** Property is now in the system and ready for tokenization.
 
 ---
 
 ### **Step 2: Tokenization**
 
-* Owner clicks **“Tokenize Property”**.
-<<<<<<< HEAD
-* Backend deploys or interacts with an ERC‑20 (fungible) token contract on **Avalanche C‑Chain (EVM)**.
+* Owner clicks **Tokenize Property**.
+* Backend deploys or mints an **ERC‑20 token** on the Avalanche C‑Chain.
+* Example allocation: **10,000 tokens = 100% ownership**.
+* UI displays token contract address and transaction details.
 
-  * Example: 10,000 tokens = 100% of the property.
-* Transaction details and token contract address are displayed on the UI.
-
-*Result:* The property is now a blockchain asset with tradable shares on Avalanche.
-=======
-* Backend deploys or mints an ERC‑20 token on the **Avalanche C‑Chain** using a Web3 provider (e.g., ethers.js).
-  * Example: 10,000 tokens = 100% of the property.
-* Transaction details and token contract address are displayed on the UI.
-
-➡️ *Result:* The property is now a blockchain asset (ERC‑20) with tradable shares.
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
+**Result:** The property becomes a blockchain asset with tradable fractional shares.
 
 ---
 
 ### **Step 3: Buy Tokens (Simulated)**
 
 * Investors choose how many tokens they want.
-<<<<<<< HEAD
-* A dummy purchase flow transfers ERC‑20 tokens from the **owner’s treasury** to the **investor’s address** using standard token transfer calls.
-* Payment is simulated — no fiat integration yet.
+* Dummy purchase flow transfers ERC‑20 tokens from the **Owner’s treasury** to the **Investor’s wallet**.
+* Payment is simulated — no fiat or crypto payment processing.
 
-*Result:* Ownership of property fractions changes on the Avalanche C‑Chain.
-=======
-* A dummy purchase flow transfers ERC‑20 tokens from the **owner’s treasury** to the **investor’s address** via a standard token transfer call.
-* Payment is simulated — no fiat integration yet.
-
-➡️ *Result:* Ownership of property fractions changes on the Avalanche network.
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
+**Result:** Actual ERC‑20 token balances update on Avalanche testnet.
 
 ---
 
 ### **Step 4: Ownership Dashboard**
 
-* Users can view a dashboard showing:
+The dashboard displays:
 
-  * Property info
-  * Token contract address
-  * Ownership distribution (who holds how many tokens)
-<<<<<<< HEAD
-* Data fetched from an Avalanche C‑Chain RPC, indexer, or block explorer API (e.g., SnowTrace) for verification.
+* Property information
+* Token contract address
+* Ownership distribution (ERC‑20 balances per address)
 
-*Result:* Transparent on‑chain record of property ownership.
-=======
-* Balances are fetched from the Avalanche C‑Chain via RPC (ethers.js provider) or block explorer API (e.g., SnowTrace) for verification.
+Balances fetched from Avalanche RPC or SnowTrace API.
 
-➡️ *Result:* Transparent on‑chain record of property ownership.
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
+**Result:** Clear, transparent on‑chain record of fractional ownership.
 
 ---
 
-### **Step 5 (Optional): Token Transfers**
+### **Step 5 (Optional): Token Transfers)**
 
-* Investors can transfer some tokens to others (e.g., Investor A → Investor B).
-* Demonstrates secondary market movement.
+* Investors can transfer tokens to each other (e.g., A → B).
 
- *Result:* Realistic simulation of asset liquidity.
+**Result:** Shows realistic fractional liquidity.
 
 ---
 
-## **App Components**
+## 🧩 **App Components**
 
 ### **Frontend (React)**
 
-| Component            | Function                                     |
-| -------------------- | -------------------------------------------- |
-| `UploadForm`         | Property upload and image submission         |
-<<<<<<< HEAD
-| `TokenizeButton`     | Trigger ERC‑20 contract deployment/minting   |
-| `BuyForm`            | Simulate token purchase                      |
-| `OwnershipDashboard` | Display ownership breakdown from chain/indexer |
-=======
-| `TokenizeButton`     | Trigger ERC‑20 contract deploy/mint          |
-| `BuyForm`            | Simulate token purchase                      |
-| `OwnershipDashboard` | Display ownership breakdown from chain RPC   |
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
+| Component            | Function                             |
+| -------------------- | ------------------------------------ |
+| `UploadForm`         | Upload property & image              |
+| `TokenizeButton`     | Deploy/mint ERC‑20 token             |
+| `BuyForm`            | Simulate token purchase              |
+| `OwnershipDashboard` | Display token ownership distribution |
 
 ---
 
 ### **Backend (Node.js + Express)**
 
-<<<<<<< HEAD
-| Endpoint                            | Description                                |
-| ----------------------------------- | ------------------------------------------ |
-| `POST /api/properties/upload`       | Handles property creation                  |
-| `POST /api/properties/:id/tokenize` | Deploys/mints ERC‑20 token on Avalanche    |
-| `POST /api/properties/:id/buy`      | Transfers tokens to dummy investor         |
-| `GET /api/properties/:id/holders`   | Queries chain/indexer for balances         |
+| Endpoint                            | Description                            |
+| ----------------------------------- | -------------------------------------- |
+| `POST /api/properties/upload`       | Upload property + media                |
+| `POST /api/properties/:id/tokenize` | Deploy/mint ERC‑20 token               |
+| `POST /api/properties/:id/buy`      | Transfer tokens from Owner to Investor |
+| `GET /api/properties/:id/holders`   | Fetch balances from Avalanche RPC      |
 
-Uses `ethers.js` (or `web3.js`) for ERC‑20 interactions and local JSON/SQLite for metadata.
-=======
-| Endpoint                            | Description                        |
-| ----------------------------------- | ---------------------------------- |
-| `POST /api/properties/upload`       | Handles property creation          |
-| `POST /api/properties/:id/tokenize` | Deploys/mints ERC‑20 token         |
-| `POST /api/properties/:id/buy`      | Transfers tokens to dummy investor |
-| `GET /api/properties/:id/holders`   | Queries chain for balances         |
-
-Uses `ethers` (or `web3`) for ERC‑20 operations and local JSON/SQLite for metadata.
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
+Backend uses **ethers.js** + local JSON/SQLite.
 
 ---
 
-## **Infrastructure Diagram**
+## ☁️ **Infrastructure Diagram**
 
 ```
 [ React Frontend ]
        ↓
 [ Node.js API ]
-   ├── Property Storage (local JSON / SQLite)
-<<<<<<< HEAD
-   ├── Ethers.js (ERC‑20 deploy/mint/transfer on Avalanche C‑Chain)
-=======
-   ├── Avalanche C-Chain (ERC-20 via ethers.js)
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
+   ├── Property Storage (JSON / SQLite)
+   ├── Avalanche C‑Chain ERC‑20 via ethers.js
    └── IPFS (image storage)
 ```
 
 ---
 
-## **Example Environment Variables**
+## 🔑 **Environment Variables Example**
 
 ```bash
 OWNER_ADDRESS=0xAbC123...
-<<<<<<< HEAD
-OWNER_KEY=0x302e02...
-INVESTOR_A_ADDRESS=0xDeF456...
-INVESTOR_A_KEY=0x302e02...
-INVESTOR_B_ADDRESS=0x789GhI...
-INVESTOR_B_KEY=0x302e02...
-AVALANCHE_NETWORK=fuji
-AVALANCHE_RPC_URL=https://api.avax-test.network/ext/bc/C/rpc
-=======
 OWNER_PRIVATE_KEY=0xabcdef...
 INVESTOR_A_ADDRESS=0xDef456...
 INVESTOR_A_PRIVATE_KEY=0x123456...
@@ -208,67 +132,47 @@ INVESTOR_B_ADDRESS=0x789AbC...
 INVESTOR_B_PRIVATE_KEY=0x789abc...
 AVALANCHE_NETWORK=fuji
 AVALANCHE_RPC=https://api.avax-test.network/ext/bc/C/rpc
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
 ```
 
 ---
 
-## **Demo Flow Summary**
+## 🚀 **Demo Flow Summary**
 
 1. Owner uploads a property.
-<<<<<<< HEAD
-2. Clicks **Tokenize** → ERC‑20 contract is deployed or minted on Avalanche C‑Chain.
-=======
-2. Clicks **Tokenize** → ERC‑20 contract deploys / mint transaction executes on Avalanche.
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
-3. Investor buys tokens → transfer happens.
-4. Dashboard updates showing token distribution.
+2. Owner clicks **Tokenize**, deploying an ERC‑20 token.
+3. Investors buy fractions (token transfers occur).
+4. Dashboard displays dynamic, on‑chain ownership.
 
-This creates a **clear, verifiable tokenized property demo** — perfect for showing investors, hackathon judges, or a product prototype.
+A clear, verifiable **tokenized real‑estate demo** — ideal for investors, hackathons, and prototypes.
 
-<<<<<<< HEAD
 ---
 
-## Unique features
-- Snapshot NFT Receipts — Turns transfers into verifiable, shareable deeds (mint a receipt NFT for each transfer).
-- Satellite + Geo‑Overlay — Visual proof of where you own: map overlays and satellite imagery tied to the property coordinates.
-- AI Property Summary — Smart auto‑description generated from metadata and images so owners avoid manual typing.
-- One‑Click Chain Explorer — Instant on‑chain verification links and human‑friendly views, no crypto knowledge required.
-- Fractional Ownership Game — Gamified onboarding to make fractional ownership engaging and memorable.
-- No‑Wallet UX — Local custody or custodial flows so the experience feels like a regular app, not a blockchain experiment.
+## ⭐ Unique Features
 
-=======
+* **Snapshot NFT Receipts** — Mint receipt NFTs for every transfer.
+* **Satellite + Geo‑Overlay** — Visual location proof tied to coordinates.
+* **AI Property Summary** — Auto‑generated descriptions from metadata.
+* **One‑Click Explorer View** — Human‑friendly on‑chain verification.
+* **Fractional Ownership Game** — Gamified onboarding.
+* **No‑Wallet UX** — Local/custodial flows for Web2‑smooth experience.
 
+---
 
 # Avalanche IPFS Property Backend (MVP)
 
+A backend for storing immutable property metadata on IPFS and referencing it locally.
 
-This project demonstrates how to persist property media and canonical metadata to immutable off‑chain storage (IPFS) and keep compact, verifiable references on‑chain (or in this case, locally recorded CIDs). It satisfies the acceptance checklist for an MVP.
+## Features
 
+* Upload media to IPFS (ipfs‑http‑client or Pinata)
+* Build canonical metadata JSON
+* Upload metadata JSON to IPFS
+* Store `{ id, metadataCid, canonicalHash }` locally
+* Endpoints for upload, list, view, tokenize, buy, and holders
 
-## What it does
-* Uploads media files to IPFS (supports ipfs-http-client or Pinata)
-* Builds canonical metadata JSON containing media CIDs and SHA-256 hash
-* Uploads canonical metadata JSON to IPFS
-* Stores a compact local record: `{ id, metadataCid, canonicalHash }`
-* Exposes endpoints to upload, list, and verify metadata
+## Project Structure
 
-
-## How to run
-1. Copy `.env.example` to `.env` and set provider values.
-2. `npm install` (dependencies: express, ipfs-http-client, multer, lowdb, axios, pino, dotenv, uuid, ethers)
-3. `node src/server.js`
-
-
-## Endpoints
-* `POST /api/properties` - multipart/form-data `files[]` + additional form fields -> returns record
-* `GET /api/properties` - list
-* `GET /api/properties/:id` - get specific record
-* `POST /api/properties/:id/tokenize` - deploy/mint ERC‑20 token for property
-* `POST /api/properties/:id/buy` - transfer tokens from owner to investor
-* `GET /api/properties/:id/holders` - get token balances for property token
-
-
+```
 FractionHome/
 ├── backend/
 │   ├── db.json
@@ -277,28 +181,21 @@ FractionHome/
 │   ├── server.js
 │   ├── README.md
 │   ├── .env.example
-│   ├── uploads/                 # created dynamically when uploading files
-│   └── public/
-│       └── media/               # uploaded images stored here
-│
+│   ├── uploads/
+│   └── public/media/
 ├── frontend/
 │   ├── index.html
 │   ├── package.json
 │   ├── vite.config.js
 │   ├── README.md
-│   ├── node_modules/
 │   └── src/
-│       ├── App.jsx              # simple React UI
+│       ├── App.jsx
 │       ├── main.jsx
 │       └── assets/
-│
 ├── docs/
-│   └── demo.md                  # short usage notes
-│
+│   └── demo.md
 ├── scripts/
-│   ├── start-backend.sh         # helper to run backend in dev mode
-│   └── demo-api.sh              # test script to upload & list properties
-│
-├── .gitignore
-└── README.md                    # project overview
->>>>>>> f5105f0387d5faad631f94586b89c68148c8c433
+│   ├── start-backend.sh
+│   └── demo-api.sh
+└── README.md
+```
