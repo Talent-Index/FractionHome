@@ -9,7 +9,7 @@ FractionHome demonstrates how real estate can be transformed into divisible, tra
 Real estate is traditionally illiquid, expensive to co-own, and opaque. FractionHome removes these frictions by leveraging **Avalanche**, which provides:
 
 * **Fast, sub-second finality** — critical for asset transfers and ownership proofs.
-* **Low fees** — enabling micro-ownership (even <$5).
+* **Low fees** — enabling micro-ownership (even KSh700–KSh1,000 per token).
 * **EVM-compatibility** — meaning tokens follow familiar ERC-20 patterns and integrate with wallets like MetaMask.
 * **Scalability** via optional Subnets — future-proofing the platform for regulated or private markets.
 
@@ -17,12 +17,9 @@ This MVP intentionally removes onboarding complexity (no login/KYC) to focus on 
 
 ## What it shows
 
-* End-to-end tokenization pipeline:
-  property metadata → IPFS → on-chain Avalanche token contract.
-* Simulated secondary market:
-  treasury → investors → peer-to-peer transfers using standard ERC-20 mechanics.
-* Real-time ownership visibility:
-  balances pulled directly from the Avalanche C-Chain and displayed in a dashboard.
+* End-to-end tokenization pipeline: property metadata → IPFS → on-chain Avalanche token contract.
+* Simulated secondary market: treasury → investors → peer-to-peer transfers using standard ERC-20 mechanics.
+* Real-time ownership visibility: balances pulled directly from the Avalanche C-Chain and displayed in a dashboard.
 
 ## Why it matters
 
@@ -36,12 +33,14 @@ This MVP becomes a clear, repeatable demo for hackathons, investor pitches, and 
 ## Ask / Next Steps
 
 * Use this Avalanche-based demo to validate assumptions with real users and regulators.
+
 * Explore integrating:
 
   * **payment rails (M-Pesa, card, PayPal)**
   * **KYC/AML**
   * **automated compliance via Subnets**
   * **secondary trading rules**
+
 * Expand beyond one-asset-at-a-time into a full marketplace.
 
 FractionHome is a focused, demonstrable step toward more liquid, transparent real-estate ownership using **Avalanche and verifiable on-chain token balances**.
@@ -59,18 +58,18 @@ Back in high school I stumbled across *Rich Dad Poor Dad* and got hooked on real
 
 # Head-turning stats (Kenya — illustrative)
 
-* **Total real-estate stock** ≈ $300B (order of magnitude).
-  Tokenizing 1% → ~$3B of digitized real-world assets.
-* **Nairobi metro** ≈ $20–30B — enough scale to create liquid markets.
+* **Total real-estate stock** ≈ KSh42 trillion.
+  Tokenizing 1% → KSh420 billion of digitized real-world assets.
+* **Nairobi metro** ≈ KSh2.8–4.2 trillion — enough scale to create liquid markets.
 * **Population 55M**, with ~35–40% urban and mobile-first behaviour.
-* **Diaspora remittances** ≈ $4B+/year — strong appetite for local investment.
+* **Diaspora remittances** ≈ KSh560 billion+/year — strong appetite for local investment.
 * **Small tickets become possible:**
 
-  * KSh70M (~$470k) property
+  * KSh70 million property
   * Split into 100,000 tokens
-  * ~KSh700 (~$5) per token
+  * ~KSh700 per token
 
-Avalanche’s **low fees** and **fast finality** make sub-$5 property shares feasible—something impractical on slow or expensive chains.
+Avalanche’s **low fees** and **fast finality** make sub-KSh1,000 property shares feasible—something impractical on slow or expensive chains.
 
 ---
 
@@ -88,7 +87,7 @@ Tokenized money-market fund showing competitive returns and institutional accept
 
 ### Real-estate tokenization example
 
-St. Regis Aspen Resort raised ~$18M by issuing fractional digital securities.
+St. Regis Aspen Resort raised ~KSh2.7 billion by issuing fractional digital securities.
 
 ---
 
