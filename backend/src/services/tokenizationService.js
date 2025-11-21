@@ -1,80 +1,92 @@
-import { PrivateKey, AccountCreateTransaction, TokenCreateTransaction, Hbar, TokenType, TokenSupplyType } from '@hashgraph/sdk';
-import HederaClient from '../config/hederaClient.js';
+import { ethers } from "ethers";
 import PropertyModel from '../models/propertyModel.js';
+import fs from "fs";
+import path from "path";
 
 const propertyModel = new PropertyModel();
-const hederaClient = new HederaClient();
-const client = hederaClient.getClient();
+
+// Avalanche C-Chain RPC (you may use your own)
+const AVALANCHE_RPC = "https://api.avax.network/ext/bc/C/rpc";
+
+// Operator wallet (payer + contract deployer)
+const OPERATOR_PRIVATE_KEY = process.env.AVAX_OPERATOR_KEY;
+
+const provider = new ethers.JsonRpcProvider(AVALANCHE_RPC);
+const operatorWallet = new ethers.Wallet(OPERATOR_PRIVATE_KEY, provider);
+
+// Load compiled Solidity contract (ABI + bytecode)
+const contractPath = path.join(process.cwd(), "artifacts/contracts/PropertyToken.sol/PropertyToken.json");
+const contractJson = JSON.parse(fs.readFileSync(contractPath));
+const abi = contractJson.abi;
+const bytecode = contractJson.bytecode;
 
 async function createTreasuryForProperty(req, res, next) {
     try {
         const propertyId = req.params.id;
-        if (!propertyId) return res.status(400).json({ error: 'Missing property id' });
+        if (!propertyId)
+            return res.status(400).json({ error: "Missing property id" });
 
         const prop = await propertyModel.getPropertyById(propertyId);
-        if (!prop) return res.status(404).json({ error: 'Property not found' });
+        if (!prop)
+            return res.status(404).json({ error: "Property not found" });
 
         if (prop.treasuryId) {
-            return res.status(400).json({ error: 'Property already has a treasury', treasuryId: prop.treasuryId });
+            return res.status(400).json({
+                error: "Property already has a treasury",
+                treasuryId: prop.treasuryId
+            });
         }
 
-        const initialSupply = Number(req.body && req.body.initialSupply ? req.body.initialSupply : 0);
-        if (Number.isNaN(initialSupply) || initialSupply < 0) {
-            return res.status(400).json({ error: 'Invalid initialSupply' });
+        const initialSupply = Number(req.body?.initialSupply ?? 0);
+        if (isNaN(initialSupply) || initialSupply < 0) {
+            return res.status(400).json({ error: "Invalid initialSupply" });
         }
 
-        // 1) generate treasury keypair
-        const treasuryKey = PrivateKey.generateECDSA();
-        console.log("Treasury Private Key:", treasuryKey.toString());
+        // 1) Generate treasury wallet (just a private key)
+        const treasuryWallet = ethers.Wallet.createRandom();
+        const treasuryAddress = treasuryWallet.address;
 
-        // 2) create treasury account - Use standard approach with proper signing
-        const operatorKey = hederaClient.getOperatorKey();
-        
-        const acctTx = new AccountCreateTransaction()
-            .setKey(treasuryKey.publicKey)
-            .setInitialBalance(new Hbar(1))
-            .freezeWith(client);
+        console.log("Treasury Private Key:", treasuryWallet.privateKey);
+        console.log("Treasury Address:", treasuryAddress);
 
-        // Sign with operator key (pays for transaction)
-        const signedAcctTx = await acctTx.sign(operatorKey);
-        const acctResponse = await signedAcctTx.execute(client);
-        
-        const acctReceipt = await acctResponse.getReceipt(client);
-        const treasuryId = acctReceipt.accountId.toString();
-        console.log("Created treasury account:", treasuryId);
+        // Operator pays gas, so treasury does not need AVAX
 
-        // 3) create fungible token
-        const tokenTx = new TokenCreateTransaction()
-            .setTokenName(`Property-${propertyId}-Token`)
-            .setTokenSymbol(`PROP-${propertyId}`)
-            .setTokenType(TokenType.FungibleCommon)
-            .setDecimals(0)
-            .setInitialSupply(initialSupply)
-            .setTreasuryAccountId(treasuryId)
-            .setSupplyType(TokenSupplyType.Finite)
-            .setMaxSupply(initialSupply)
-            .setAdminKey(operatorKey.publicKey)
-            .setSupplyKey(operatorKey.publicKey)
-            .freezeWith(client);
+        // 2) Deploy ERC-20 token for the property
+        const name = `Property-${propertyId}-Token`;
+        const symbol = `PROP-${propertyId}`;
 
-        // Sign with both operator and treasury keys
-        const signedTokenTx = await (await tokenTx.sign(operatorKey)).sign(treasuryKey);
-        const tokenResp = await signedTokenTx.execute(client);
-        const tokenReceipt = await tokenResp.getReceipt(client);
-        const tokenId = tokenReceipt.tokenId.toString();
+        const factory = new ethers.ContractFactory(abi, bytecode, operatorWallet);
 
-        // 4) update property record
+        console.log("Deploying token...");
+
+        const contract = await factory.deploy(
+            name,
+            symbol,
+            initialSupply,
+            treasuryAddress
+        );
+
+        await contract.waitForDeployment();
+
+        const tokenAddress = await contract.getAddress();
+        console.log("Token deployed at:", tokenAddress);
+
+        // 3) Save to DB
         const updates = {
-            treasuryId,
-            treasuryKey: treasuryKey.toString(),
-            tokenId,
+            treasuryId: treasuryAddress,
+            treasuryKey: treasuryWallet.privateKey,
+            tokenId: tokenAddress,
             tokenInitialSupply: initialSupply,
             tokenCreatedAt: new Date().toISOString(),
         };
 
         const updated = await propertyModel.updateProperty(propertyId, updates);
 
-        return res.json({ ok: true, property: updated || { ...prop, ...updates } });
+        return res.json({
+            ok: true,
+            property: updated || { ...prop, ...updates }
+        });
+
     } catch (err) {
         next(err);
     }
