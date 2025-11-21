@@ -5,12 +5,12 @@
 The MVP shows how a property can be:
 
 1. Uploaded to the system,
-2. Tokenized on **Hedera Hashgraph (HTS)**,
+2. Tokenized on **Avalanche C‑Chain (ERC‑20)**,
 3. Purchased fractionally by dummy investors, and
-4. Displayed in a dashboard showing ownership distribution —
-   all **without login or registration**.
+4. Displayed in a dashboard showing ownership distribution —  
+  all **without login or registration**.
 
-This is a **proof-of-concept** demo focused on the *core blockchain logic*, not user management.
+This is a **proof‑of‑concept** demo focused on the *core blockchain logic*, not user management.
 
 ---
 
@@ -18,11 +18,11 @@ This is a **proof-of-concept** demo focused on the *core blockchain logic*, not 
 
 | Role           | Purpose                                   | Represented As                 |
 | -------------- | ----------------------------------------- | ------------------------------ |
-| **Owner**      | Uploads property & initiates tokenization | Hardcoded dummy Hedera account |
-| **Investor A** | Buys property tokens                      | Dummy Hedera account           |
-| **Investor B** | Holds or transfers tokens                 | Dummy Hedera account           |
+| **Owner**      | Uploads property & initiates tokenization | Hardcoded dummy Avalanche EVM address |
+| **Investor A** | Buys property tokens                      | Dummy Avalanche EVM address    |
+| **Investor B** | Holds or transfers tokens                 | Dummy Avalanche EVM address    |
 
-All accounts are stored in `.env` with their respective `account_id` and `private_key` for testnet operations.
+All accounts are stored in `.env` with their respective `address` and `private_key` for fuji/testnet operations.
 
 ---
 
@@ -32,7 +32,7 @@ All accounts are stored in `.env` with their respective `account_id` and `privat
 
 * The **Owner** fills a simple form:
   → property name, location, price, and image.
-* The image is uploaded to **IPFS (or Hedera File Service)**.
+* The image is uploaded to **IPFS (or other off‑chain storage)**.
 * Metadata is stored locally (JSON or SQLite).
 
 ➡️ *Result:* Property added to system, ready for tokenization.
@@ -42,22 +42,21 @@ All accounts are stored in `.env` with their respective `account_id` and `privat
 ### **Step 2: Tokenization**
 
 * Owner clicks **“Tokenize Property”**.
-* Backend calls **Hedera Token Service (HTS)** to create a fungible token.
-
+* Backend deploys or mints an ERC‑20 token on the **Avalanche C‑Chain** using a Web3 provider (e.g., ethers.js).
   * Example: 10,000 tokens = 100% of the property.
-* Transaction details and token ID are displayed on the UI.
+* Transaction details and token contract address are displayed on the UI.
 
-➡️ *Result:* The property is now a blockchain asset with tradable shares.
+➡️ *Result:* The property is now a blockchain asset (ERC‑20) with tradable shares.
 
 ---
 
 ### **Step 3: Buy Tokens (Simulated)**
 
 * Investors choose how many tokens they want.
-* A dummy purchase flow transfers tokens from the **owner’s treasury** to the **investor’s account** using HTS.
+* A dummy purchase flow transfers ERC‑20 tokens from the **owner’s treasury** to the **investor’s address** via a standard token transfer call.
 * Payment is simulated — no fiat integration yet.
 
-➡️ *Result:* Ownership of property fractions changes on the Hedera network.
+➡️ *Result:* Ownership of property fractions changes on the Avalanche network.
 
 ---
 
@@ -66,11 +65,11 @@ All accounts are stored in `.env` with their respective `account_id` and `privat
 * Users can view a dashboard showing:
 
   * Property info
-  * Token ID
+  * Token contract address
   * Ownership distribution (who holds how many tokens)
-* Data fetched from the **Hedera Mirror Node** for verification.
+* Balances are fetched from the Avalanche C‑Chain via RPC (ethers.js provider) or block explorer API (e.g., SnowTrace) for verification.
 
-➡️ *Result:* Transparent on-chain record of property ownership.
+➡️ *Result:* Transparent on‑chain record of property ownership.
 
 ---
 
@@ -90,9 +89,9 @@ All accounts are stored in `.env` with their respective `account_id` and `privat
 | Component            | Function                                     |
 | -------------------- | -------------------------------------------- |
 | `UploadForm`         | Property upload and image submission         |
-| `TokenizeButton`     | Trigger HTS token creation                   |
+| `TokenizeButton`     | Trigger ERC‑20 contract deploy/mint          |
 | `BuyForm`            | Simulate token purchase                      |
-| `OwnershipDashboard` | Display ownership breakdown from mirror node |
+| `OwnershipDashboard` | Display ownership breakdown from chain RPC   |
 
 ---
 
@@ -101,11 +100,11 @@ All accounts are stored in `.env` with their respective `account_id` and `privat
 | Endpoint                            | Description                        |
 | ----------------------------------- | ---------------------------------- |
 | `POST /api/properties/upload`       | Handles property creation          |
-| `POST /api/properties/:id/tokenize` | Mints new Hedera token             |
+| `POST /api/properties/:id/tokenize` | Deploys/mints ERC‑20 token         |
 | `POST /api/properties/:id/buy`      | Transfers tokens to dummy investor |
-| `GET /api/properties/:id/holders`   | Queries mirror node for balances   |
+| `GET /api/properties/:id/holders`   | Queries chain for balances         |
 
-Uses `hedera-sdk-js` for HTS operations and local JSON/SQLite for metadata.
+Uses `ethers` (or `web3`) for ERC‑20 operations and local JSON/SQLite for metadata.
 
 ---
 
@@ -116,7 +115,7 @@ Uses `hedera-sdk-js` for HTS operations and local JSON/SQLite for metadata.
        ↓
 [ Node.js API ]
    ├── Property Storage (local JSON / SQLite)
-   ├── Hedera SDK (HTS mint/transfer)
+   ├── Avalanche C-Chain (ERC-20 via ethers.js)
    └── IPFS (image storage)
 ```
 
@@ -125,13 +124,14 @@ Uses `hedera-sdk-js` for HTS operations and local JSON/SQLite for metadata.
 ## 🔑 **Example Environment Variables**
 
 ```bash
-OWNER_ID=0.0.12345
-OWNER_KEY=302e0201...
-INVESTOR_A_ID=0.0.67890
-INVESTOR_A_KEY=302e0201...
-INVESTOR_B_ID=0.0.13579
-INVESTOR_B_KEY=302e0201...
-HEDERA_NETWORK=testnet
+OWNER_ADDRESS=0xAbC123...
+OWNER_PRIVATE_KEY=0xabcdef...
+INVESTOR_A_ADDRESS=0xDef456...
+INVESTOR_A_PRIVATE_KEY=0x123456...
+INVESTOR_B_ADDRESS=0x789AbC...
+INVESTOR_B_PRIVATE_KEY=0x789abc...
+AVALANCHE_NETWORK=fuji
+AVALANCHE_RPC=https://api.avax-test.network/ext/bc/C/rpc
 ```
 
 ---
@@ -139,7 +139,7 @@ HEDERA_NETWORK=testnet
 ## 🚀 **Demo Flow Summary**
 
 1. Owner uploads a property.
-2. Clicks **Tokenize** → Hedera transaction executes.
+2. Clicks **Tokenize** → ERC‑20 contract deploys / mint transaction executes on Avalanche.
 3. Investor buys tokens → transfer happens.
 4. Dashboard updates showing token distribution.
 
@@ -147,10 +147,10 @@ This creates a **clear, verifiable tokenized property demo** — perfect for sho
 
 
 
-# Hedera IPFS Property Backend (MVP)
+# Avalanche IPFS Property Backend (MVP)
 
 
-This project demonstrates how to persist property media and canonical metadata to immutable off-chain storage (IPFS) and keep compact, verifiable references on-chain (or in this case, locally recorded CIDs). It satisfies the acceptance checklist for an MVP.
+This project demonstrates how to persist property media and canonical metadata to immutable off‑chain storage (IPFS) and keep compact, verifiable references on‑chain (or in this case, locally recorded CIDs). It satisfies the acceptance checklist for an MVP.
 
 
 ## What it does
@@ -163,19 +163,23 @@ This project demonstrates how to persist property media and canonical metadata t
 
 ## How to run
 1. Copy `.env.example` to `.env` and set provider values.
-2. `npm install` (dependencies: express, ipfs-http-client, multer, lowdb, axios, pino, dotenv, uuid)
+2. `npm install` (dependencies: express, ipfs-http-client, multer, lowdb, axios, pino, dotenv, uuid, ethers)
 3. `node src/server.js`
 
 
 ## Endpoints
 * `POST /api/properties` - multipart/form-data `files[]` + additional form fields -> returns record
 * `GET /api/properties` - list
-* `GET /api/propert
-```
+* `GET /api/properties/:id` - get specific record
+* `POST /api/properties/:id/tokenize` - deploy/mint ERC‑20 token for property
+* `POST /api/properties/:id/buy` - transfer tokens from owner to investor
+* `GET /api/properties/:id/holders` - get token balances for property token
+
+
 FractionHome/
 ├── backend/
 │   ├── db.json
-│   ├── hedera.js
+│   ├── avalanche.js
 │   ├── package.json
 │   ├── server.js
 │   ├── README.md
@@ -204,4 +208,3 @@ FractionHome/
 │
 ├── .gitignore
 └── README.md                    # project overview
-```
