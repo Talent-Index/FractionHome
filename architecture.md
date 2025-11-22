@@ -1,6 +1,6 @@
-## 🏗️ **FractionHome MVP Architecture Overview**
+## **FractionHome MVP Architecture Overview**
 
-### 🎯 **Goal**
+### **Goal**
 
 The MVP shows how a property can be:
 
@@ -26,7 +26,7 @@ All accounts are stored in `.env` with their respective `account_id` and `privat
 
 ---
 
-## ⚙️ **System Workflow**
+## **System Workflow**
 
 ### **Step 1: Property Upload**
 
@@ -35,7 +35,7 @@ All accounts are stored in `.env` with their respective `account_id` and `privat
 * The image is uploaded to **IPFS (or Hedera File Service)**.
 * Metadata is stored locally (JSON or SQLite).
 
-➡️ *Result:* Property added to system, ready for tokenization.
+ *Result:* Property added to system, ready for tokenization.
 
 ---
 
@@ -47,7 +47,7 @@ All accounts are stored in `.env` with their respective `account_id` and `privat
   * Example: 10,000 tokens = 100% of the property.
 * Transaction details and token ID are displayed on the UI.
 
-➡️ *Result:* The property is now a blockchain asset with tradable shares.
+ *Result:* The property is now a blockchain asset with tradable shares.
 
 ---
 
@@ -57,7 +57,7 @@ All accounts are stored in `.env` with their respective `account_id` and `privat
 * A dummy purchase flow transfers tokens from the **owner’s treasury** to the **investor’s account** using HTS.
 * Payment is simulated — no fiat integration yet.
 
-➡️ *Result:* Ownership of property fractions changes on the Hedera network.
+*Result:* Ownership of property fractions changes on the Hedera network.
 
 ---
 
@@ -70,7 +70,7 @@ All accounts are stored in `.env` with their respective `account_id` and `privat
   * Ownership distribution (who holds how many tokens)
 * Data fetched from the **Hedera Mirror Node** for verification.
 
-➡️ *Result:* Transparent on-chain record of property ownership.
+ *Result:* Transparent on-chain record of property ownership.
 
 ---
 
@@ -79,11 +79,11 @@ All accounts are stored in `.env` with their respective `account_id` and `privat
 * Investors can transfer some tokens to others (e.g., Investor A → Investor B).
 * Demonstrates secondary market movement.
 
-➡️ *Result:* Realistic simulation of asset liquidity.
+ *Result:* Realistic simulation of asset liquidity.
 
 ---
 
-## 🧩 **App Components**
+## **App Components**
 
 ### **Frontend (React)**
 
@@ -109,7 +109,7 @@ Uses `hedera-sdk-js` for HTS operations and local JSON/SQLite for metadata.
 
 ---
 
-## ☁️ **Infrastructure Diagram**
+## **Infrastructure Diagram**
 
 ```
 [ React Frontend ]
@@ -122,7 +122,7 @@ Uses `hedera-sdk-js` for HTS operations and local JSON/SQLite for metadata.
 
 ---
 
-## 🔑 **Example Environment Variables**
+##  **Example Environment Variables**
 
 ```bash
 OWNER_ID=0.0.12345
@@ -136,7 +136,7 @@ HEDERA_NETWORK=testnet
 
 ---
 
-## 🚀 **Demo Flow Summary**
+## **Demo Flow Summary**
 
 1. Owner uploads a property.
 2. Clicks **Tokenize** → Hedera transaction executes.
